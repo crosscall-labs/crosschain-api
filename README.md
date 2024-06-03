@@ -9,13 +9,13 @@
 - [x] create transfer from execute code
 - [x] create test tx for the frontend to sign
   - [x] user can signs via the frontend
-  - [x] data is sent from DEX API to Luban API
+  - [x] data is sent from DEX API to Crosschain API
   - [x] receipt and response returned to DEX API
 - [x] create userop
 - [x] create userop hash
 - [x] accept signed userop
 - [x] validate escrow deadline & value
-- [ ] validate signed userop
-- [ ] execute signed userop
-- [ ] record telemetry on all requests
+- [x] validate signed userop
+- [x] execute signed userop
+- [x] record telemetry on all requests
 - [ ] correct EscrowValue to include gas and paymaster
