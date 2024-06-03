@@ -1,0 +1,21 @@
+## TODO
+- [x] multicall enables
+- [x] interpret data
+- [x] check if scw exists
+- [x] check if escrow exists
+- [x] create init scw code
+- [x] create init escrow code
+- [x] create transfer from code
+- [x] create transfer from execute code
+- [x] create test tx for the frontend to sign
+  - [x] user can signs via the frontend
+  - [x] data is sent from DEX API to Luban API
+  - [x] receipt and response returned to DEX API
+- [x] create userop
+- [x] create userop hash
+- [x] accept signed userop
+- [x] validate escrow deadline & value
+- [ ] validate signed userop
+- [ ] execute signed userop
+- [ ] record telemetry on all requests
+- [ ] correct EscrowValue to include gas and paymaster
