@@ -31,6 +31,8 @@ This crosschain API facilitates:
 - the validation of submitted user operations
 - the relay substitue for the Hyperlane relay network to streamline execution
 
+The API has currently two primary functions: Request calls and Submit calls.
+
 Request calls to the API:
 
 The generation of the user operation takes the data created by the protocol conencting to the API. This data includes the signer EOA, calldata, transaction value, transaction asset address, transaction bid, and destination chain ID. The calldata is the transaction to be executed on the user destination chain abstraction account. The user operation will take the form of a `PackedUserOperation` defined in [ERC4337](https://eips.ethereum.org/EIPS/eip-4337). The `PaymasterAndData` field will be specialized to house the deserialized bytecode to be executed on the origin chains ecrow, including the information about the asset address and transaction full value.
