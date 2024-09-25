@@ -1,13 +1,26 @@
 ## TODO
-- [ ] refactor crosschain api, evm, svm, tvm to be seperate apis
-- [ ] execute tvm
-- [x] enable token only execution
-- [x] enable new signature methods
-- [x] enable message typing
-- [ ] write design flow for TVM
-- [ ] eventually create golang port of tvm ts
+- [x] multicall enables
+- [x] interpret data
+- [x] check if scw exists
+- [x] check if escrow exists
+- [x] create init scw code
+- [x] create init escrow code
+- [x] create transfer from code
+- [x] create transfer from execute code
+- [x] create test tx for the frontend to sign
+  - [x] user can signs via the frontend
+  - [x] data is sent from DEX API to Crosschain API
+  - [x] receipt and response returned to DEX API
+- [x] create userop
+- [x] create userop hash
+- [x] accept signed userop
+- [x] validate escrow deadline & value
+- [x] validate signed userop
+- [x] execute signed userop
+- [x] record telemetry on all requests
+- [x] correct EscrowValue to include gas and paymaster
 
-## Crosschain API v0.0.4a
+## Crosschain API v0.0.3
 
 The premise of the crosschain execution is an arbitrary native atomic execution by a solver.
 
