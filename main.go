@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	Handler "handler/api"
+	EvmHandler "handler/api/evm"
+	SvmHandler "handler/api/svm"
 	"log"
 	"net/http"
 
@@ -16,6 +18,9 @@ func main() {
 	}
 
 	http.HandleFunc("/", Handler.Handler)
+	http.HandleFunc("/api/evm", EvmHandler.Handler)
+	http.HandleFunc("/api/svm", SvmHandler.Handler)
+	// http.HandleFunc("/", Handler.Handler) // tvm is currently in ts
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
