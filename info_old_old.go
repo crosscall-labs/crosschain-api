@@ -146,16 +146,6 @@ type PackedUserOperationResponse struct {
 	Signature          string `json:"signature"`
 }
 
-type PaymasterAndData struct {
-	Paymaster    string `json:"paymaster"`
-	Signer       string `json:"signer"`
-	Escrow       string `json:"escrow"`
-	TargetDomain string `json:"target-domain"`
-	AssetAddress string `json:"asset-address"`
-	AssetAmount  string `json:"asset-amount"`
-	Calldata     string `json:"calldata"`
-}
-
 type UnsignedDataResponse struct {
 	Signer        string                      `json:"signer"`
 	ScwInit       bool                        `json:"swc-init"`
@@ -165,19 +155,6 @@ type UnsignedDataResponse struct {
 	EscrowValue   string                      `json:"escrow-value"`  // need to implement
 	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
 	UserOpHash    string                      `json:"userop-hash"`
-}
-
-type UnsignedDataResponse2 struct {
-	Signer           string                      `json:"signer"`
-	ScwInit          bool                        `json:"swc-init"`
-	Escrow           string                      `json:"escrow"`
-	EscrowInit       string                      `json:"escrow-init"`
-	EscrowPayload    string                      `json:"escrow-payload"`
-	EscrowAsset      string                      `json:"escrow-asset"`
-	EscrowValue      string                      `json:"escrow-value"`  // need to implement
-	UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-	UserOpHash       string                      `json:"userop-hash"`
 }
 
 var privateKey *ecdsa.PrivateKey
@@ -223,7 +200,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	copy(SALT[:], saltHash[:]) // 55
 
 	query := r.URL.Query()
-	messageType := query.Get("msg-type")
 	signer := query.Get("signer")
 	chainId := query.Get("chain-id")
 	destinationId := query.Get("destination-id")
@@ -293,113 +269,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// goal is to have selection routing
 	switch r.URL.Query().Get("query") {
 	case "version":
-		version := Version{Version: "Crosschain DEX API v0.0.4"}
+		version := Version{Version: "Luban DEX API v0.0.3"}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(version); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// messaeType enum: legacy, ecdsa, eddsa, secp256k1, secp256r1, secp256k1-1byte
-	case "unsigned-bytecode2":
-		if messageType == "" ||
-			signer == "" ||
-			destinationId == "" ||
-			originId == "" ||
-			assetAddress == "" ||
-			assetAmount == "" ||
-			calldata == "" {
-			errMalformedRequest(w)
-			return
-		}
-		messageTypeInt, err := strconv.Atoi(messageType)
-		if err != nil {
-			fmt.Println("Invalid integer string:", err)
-			errMalformedRequest(w)
-			return
-		}
-
-		var unsignedDataResponse UnsignedDataResponse2
-
-		// need to refactor this api as root handler and modularize evm/svm handling
-		// func checkChainType(chainId string, messageType int) (string, error)
-		// return type "evm", "tvm", "svm"
-		chainType, entrypointTypes, _, err := checkChainType(originId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		switch chainType {
-		case "evm":
-			err := hasInt(entrypointTypes, messageTypeInt)
-			if err != nil {
-				json.NewEncoder(w).Encode(err)
-				return
-			}
-			// type UnsignedDataResponse2 struct {
-			// 	Signer           string                      `json:"signer"`
-			// 	ScwInit          bool                        `json:"swc-init"`
-			// 	Escrow           string                      `json:"escrow"`
-			// 	EscrowInit       bool                        `json:"escrow-init"`
-			// 	EscrowPayload    string                      `json:"escrow-payload"`
-			// 	EscrowAsset      string                      `json:"escrow-asset"`
-			// 	EscrowValue      string                      `json:"escrow-value"`  // need to implement
-			// 	UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-			// 	PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-			// 	UserOpHash       string                      `json:"userop-hash"`
-			// }
-			// for tvm this is the escrow factory not the tba escrow address
-			//func createEscrowBytecode(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-			unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit, err = createEscrowBytecode(messageTypeInt, signer, originId, assetAddress, assetAmount) // but need to build the uerop to estimate bid cost
-			if err != nil {
-				json.NewEncoder(w).Encode(err)
-				return
-			}
-
-			//createUserOpBytecode(messageType, signer, originId, destinationId, assetAddress, assetAmount, calldata, escrowAddress)
-			// escrow address
-			// escrow factory
-			// data to create escrow
-			// data to deposit and lock
-			// data to extendlocktime
-			// combined call to gas savings
-
-			// the
-
-		}
-		chainType, _, escrowTypes, err := checkChainType(destinationId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		fmt.Printf("escrowTypes: %s", escrowTypes)
-
-		// if chainType0 == 0 || chainType0 == 1 {
-		// 	// this will call evm api
-		// 	// evaluate escrow
-		// }
-
-		client, chainInfo, err := checkChainStatus(originId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		if client == nil {
-			errUnsupportedChain(w)
-			return
-		}
-		fmt.Printf("chainInfo: %s", chainInfo)
-
-		client2, chainInfo2, err := checkChainStatus(destinationId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		if client2 == nil {
-			errUnsupportedChain(w)
-			return
-		}
-		fmt.Printf("chainInfo2: %s", chainInfo2)
-
 	case "unsigned-bytecode":
 		if signer == "" ||
 			destinationId == "" ||
@@ -441,6 +316,67 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			errUnsupportedChain(w)
 			return
 		}
+
+		// type UserOperation struct {
+		// 	Sender                string `json:"sender"`
+		// 	Nonce                 string `json:"nonce"`
+		// 	InitCode              string `json:"initCode"`
+		// 	CallData              string `json:"callData"`
+		// 	CallGasLimit          string `json:"callGasLimit"`
+		// 	VerificationGasLimit  string `json:"verificationGasLimit"`
+		// 	PreVerificationGas    string `json:"preVerificationGas"`
+		// 	MaxFeePerGas          string `json:"maxFeePerGas"`
+		// 	MaxPritorityFeePerGas string `json:"maxPriorityFeePerGas"`
+		// 	PaymasterAndData      string `json:"paymasterAndData"`
+		// 	Signature             string `json:"signature"`
+		// }
+
+		// function getUserOpHash(
+		// 	PackedUserOperation calldata userOp
+		// ) public view returns (bytes32) {
+		// 		return
+		// 				keccak256(abi.encode(userOp.hash(), address(this), block.chainid));
+		// }
+
+		// struct PackedUserOperation {
+		// 	address sender;
+		// 	uint256 nonce;
+		// 	bytes initCode;
+		// 	bytes callData;
+		// 	bytes32 accountGasLimits;
+		// 	uint256 preVerificationGas;
+		// 	bytes32 gasFees;
+		// 	bytes paymasterAndData;
+		// 	bytes signature;
+		// }
+
+		// type PackedUserOperation struct {
+		// 	Sender             common.Address
+		// 	Nonce              *big.Int
+		// 	InitCode           []byte
+		// 	CallData           []byte
+		// 	AccountGasLimits   [32]byte
+		// 	PreVerificationGas *big.Int
+		// 	GasFees            [32]byte
+		// 	PaymasterAndData   []byte
+		// 	Signature          []byte
+		// }
+
+		// function getNonce(address sender, uint192 key) // assume uint192 is the same as SALT for testing mode (ie 55 or 0x37)
+		// 	public view override returns (uint256 nonce) {
+		// 		return nonceSequenceNumber[sender][key] | (uint256(key) << 64);
+		// 	}
+
+		// need to create PackedUserOperation
+		// requires
+		// sender = signer
+		// scw address (key = 55)
+		// getNonce(signer, uint192(55))
+		// if extcode == 0 -> initcode : initcode = 0
+		// gas should be 40k + callData gas
+
+		//if extcodesize > 0
+		//check nonce
 
 		fmt.Printf("calldata: %s\n", useropCallData)
 		var unsignedDataResponse UnsignedDataResponse
@@ -875,6 +811,21 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// packedUserOperation.PaymasterAndData:
+		// 31aca626fabd9df61d24a537ecb9d646994b4d4d00000000000000000000000000989680000000000000000000000000009896809b749e19580934d14d955f993cb159d9747478da0000000000000000000000000000000000000000000000000000000000aa36a700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000037
+		// paymasterAndData:
+		// bbfb649f42baf44729a150464cbf6b89349a634a00000000000000000000000000989680000000000000000000000000009896809b749e19580934d14d955f993cb159d9747478da0000000000000000000000000000000000000000000000000000000000000e3400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000037
+
+		// packedUserOperation.PaymasterAndData:
+		// bbfb649f42baf44729a150464cbf6b89349a634a00000000000000000000000000989680000000000000000000000000009896809b749e19580934d14d955f993cb159d9747478da0000000000000000000000000000000000000000000000000000000000aa36a700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000037
+		// paymasterAndData:
+		// bbfb649f42baf44729a150464cbf6b89349a634a00000000000000000000000000989680000000000000000000000000009896809b749e19580934d14d955f993cb159d9747478da0000000000000000000000000000000000000000000000000000000000000e3400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000037
+		// should validate full paymaster
+		// hash the userop
+		// validate on the simpleAccount address
+		//this is called by the simple account (can be the one deployed by simplefactory)
+		// need to get each simple account from factory deployment
+
 		initializerBytes, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "initialize", common.HexToAddress(signer), common.HexToAddress(chainInfo.AddressEscrow))
 		if err != nil {
 			fmt.Println(err)
@@ -1035,7 +986,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 		// _, _ = client.CallContract(context.Background(), callMsg, nil)
 
-		receipt, err := TransferEth(*client, "8e80f019af2ae825c10e261594aa7ce5f8898fcc30eec7a25110a906914968d7", signer, someint)
+		receipt, err := TransferEth(*client2, "8e80f019af2ae825c10e261594aa7ce5f8898fcc30eec7a25110a906914968d7", signer, someint)
 		if err != nil {
 			fmt.Println(err)
 			errInternal(w)
@@ -1044,6 +995,83 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Printf("receipt: %s\n", receipt)
 
+		// deposit 0.0
+		// then execute datainput on the entrypoint
+		// both the paymaster, paymaster stake, and sender need to be funded
+		// the result of everythhing is that the signer gets data
+
+		//created the input data
+		//need to create the input for sending funds to the paymaster
+
+		// ?????
+		// need to execute []PackedUserOperation, msg.sender
+
+		// copy(gasFees[:], gasFeeBytes)
+		// packedUserOperation = PackedUserOperation{
+		// 	Sender:             packedUserOperation.Sender,
+		// 	Nonce:              packedUserOperation.Nonce,
+		// 	InitCode:           packedUserOperation.InitCode,
+		// 	CallData:           common.FromHex(useropCallData),
+		// 	AccountGasLimits:   [32]byte(common.FromHex("0x0000000000000000000000000098968000000000000000000000000000989680")),
+		// 	PreVerificationGas: big.NewInt(20000000),
+		// 	GasFees:            [32]byte(common.FromHex("0x0000000000000000000000000000000200000000000000000000000000000000")),
+		// 	PaymasterAndData:   packedUserOperation.PaymasterAndData,
+		// 	Signature:          packedUserOperation.Signature,
+		// }
+
+		// localhost:8080/handler/api/info?query=unsigned-bytecode&
+		// userop-calldata=0x55&asset-address=0x0000000000000000000000000000000000000000&asset-amount=55&destination-id=200810&origin-id=11155111&signer=0x74989DF6077Ddc4da81a640b514E6a372ff7217E
+		// localhost:8081/abi/info?query=signed-bytecode
+		// &signer=0x74989DF6077Ddc4da81a640b514E6a372ff7217E
+		// &destination-id=200810
+		// &origin-id=11155111
+		// &asset-amount=50
+		// &asset-address=0x0000000000000000000000000000000000000000
+		// &op0=
+		// &op1=0
+		// &op2=
+		// &op3=0x55
+		// &op4=0x00000000000000000000000001312d0000000000000000000000000000989680
+		// &op5=20000000
+		// &op6=0x0000000000000000000000000000000200000000000000000000000000000000
+		// &op7=
+		// &op8=
+		// should be abi.encoded(PackedUserOperation)[length:length-20] || signature || signaturePadding
+
+		// signer := query.Get("signer")
+		// destinationId := query.Get("destination-id")
+		// originId := query.Get("origin-id")
+		// assetAmount := query.Get("asset-amount")
+		// assetAddress := query.Get("asset-address")
+
+		// useropSender := query.Get("op0")
+		// useropNonce := query.Get("op1")
+		// useropInitCode := query.Get("op2")
+		// useropCallData := query.Get("op3")
+		// useropAccountGasLimit := query.Get("op4")
+		// useropPreVerificationGas := query.Get("op5")
+		// useropGasFees := query.Get("op6")
+		// useropPaymasterAndData := query.Get("op7")
+		// useropSignature := query.Get("op8")
+		// if signer == "" ||
+		// 	originId == "" ||
+		// 	destinationId == "" ||
+		// 	assetAddress == "" ||
+		// 	assetAmount == "" ||
+		// 	useropBytecode == "" { // TODO validate the full userop
+		// 	errMalformedRequest(w)
+		// 	return
+		// }
+
+		// need to check if pay
+		// receiept, data, err := PackedExecuteFunction(*client, common.HexToAddress(chainInfo.AddressPaymaster), common.Big0, common.Hex2Bytes(escrowPayload)) // shit
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+		// fmt.Println(receiept)
+		// fmt.Println(data)
 		fmt.Println(chainInfo2)
 		//TestReceipt
 		// for not only handle escrowPayload, which is a payload to execute test contract increment
@@ -1070,6 +1098,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// validate adddress, probably skip for now
 		// check if scw exists on target chain
 		// check if escrow account exists on origin chain
 		// - check Escrow Factory
@@ -1081,6 +1110,100 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			errInternal(w)
 			return
 		}
+
+		// getEscrowBytes, err := GetViewCallBytes(*client, parsedABIs["EscrowFactory"], "getEscrowAddress", initializerBytes, SALT)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// // once called, need escrow extcodesize >0, otherwise need to call with multicall
+		// // current setup is only targeting target chain, should be origin chain
+		// // bytecode, err := client.CodeAt(context.Background(), contractAddress, nil) // nil is latest block
+		// // if err != nil {
+		// // 	log.Fatal(err)
+		// // }
+
+		// // Calculate the bytecode size
+		// // bytecodeSize := len(bytecode)
+
+		// //create bytecode for executing a transfer call on the scw
+		// // this should be from the DEX
+		// //bytes memory payload_ = abi.encodeWithSignature("execute(address,uint256,bytes)", rando, 5 ether, t);
+		// // DEX API will call the function
+		// // specifying:
+		// //	- chain-id
+		// //	- origin-id
+		// //	- signer
+		// //	- value
+		// //	- asset-address
+		// // getTransferBytes, err := GetViewCallBytes(*client, parsedABIs["SimpleAccount"], "execute", common.HexToAddress(signer), big.NewInt(5), []byte{})
+		// // if err != nil {
+		// // 	fmt.Println(err)
+		// // 	errInternal(w)
+		// // 	return
+		// // }
+
+		// getScwBytes, err := GetViewCallBytes(*client, parsedABIs["SimpleAccountFactory"], "getAddress", common.HexToAddress(signer), new(big.Int).SetBytes(SALT[:]))
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// // once called, need scw extcodesize >0, otherwise need to add initcode
+
+		// bytesval0, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "hyperlaneMailbox")
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// bytesval1, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "entrypoint", uint32(11155111))
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// bytesval2, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "hyperlaneOrigin", common.HexToAddress("0x0000000000000000000000000000000000000000"))
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// bytesval3, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "interchainSecurityModule", common.HexToAddress("0x0000000000000000000000000000000000000000"))
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// bytesval4, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "eoaRelay")
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+
+		// // testData, err := GetViewCallBytes(*client, parsedABIs["Multicall"], "multicallView", multicallViewInput)
+		// // if err != nil {
+		// // 	fmt.Println(err)
+		// // 	errInternal(w)
+		// // 	return
+		// // }
+		// // fmt.Println(testData)
+
+		// returnData, err := ViewFunction(*client, common.HexToAddress(chainInfo.AddressMulticall), parsedABIs["Multicall"], "multicallView", multicallViewInput)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+		// bufferBytes = returnData
 
 		calls := []struct {
 			contractName    string
@@ -1149,6 +1272,16 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		testBytes, _ := GetViewCallBytes(*client, parsedABIs["Test"], "increment", big.NewInt(5))
 		results2 = append(results2, Test{Success: true, ReturnData: common.Bytes2Hex(testBytes)})
 
+		// create the bytes in the form of the multicall (means we need to create the multicall)
+		// handling raw bytes
+		// type Call3 struct {
+		// 	Target   common.Address
+		// 	Value    big.Int
+		// 	CallData []byte
+		// }
+		// tuples := [][3]interface{}{
+		// 	{chainInfo.AddressTest, 0, testBytes},
+		// }
 		calls3 := []struct {
 			contractName    string
 			contractAddress string
@@ -1164,13 +1297,72 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 				params:          nil,
 			},
 		}
-
+		// bytecode := createMulticallExecuteAllData(*chainInfo, tuples)
 		bytecode, _ := getMulticallExecuteAllBytecode(client, parsedABIs, chainInfo, calls3)
+		// bytecode := testBytes
 
+		// paddedTuples := make([][]byte, len(tuples))
+		// paddedTuplesLen := len(tuples)
+
+		// // create tuple raw bytes
+		// for i, tuple := range tuples {
+		// 	addrBytes := padLeft(tuple[0].(common.Address).Bytes())
+		// 	valueBytes := padLeftHex(tuple[1].(int))
+		// 	dataBytes := tuple[2].([]byte)
+		// 	paddedLen := ((len(dataBytes) + 31) / 32) * 32 // future error?
+		// 	paddedBytes := make([]byte, paddedLen)
+		// 	copy(paddedBytes, dataBytes)
+
+		// 	// Concatenate the padded address and padded bytes
+		// 	tupleBytes := append(addrBytes, valueBytes...)
+		// 	tupleBytes = append(tupleBytes, common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000060")...)
+		// 	tupleBytes = append(tupleBytes, padLeftHex(len(dataBytes))...)
+		// 	tupleBytes = append(tupleBytes, paddedBytes...)
+		// 	paddedTuples[i] = tupleBytes
+		// }
+
+		// var buffer bytes.Buffer
+
+		// parse, _ := common.ParseHexOrString("multicallExecuteAll((address,uint256,bytes)[])")
+		// hash := sha3.NewLegacyKeccak256()
+		// hash.Write(parse)
+		// selector := hash.Sum(nil)[:4]
+		// buffer.Write(selector)
+
+		// buffer.Write(common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000020"))
+
+		// buffer.Write(padLeftHex(paddedTuplesLen))
+
+		// buffer.Write(padLeftHex(paddedTuplesLen * 32))
+		// var sum int
+		// for i := 1; i < len(paddedTuples); i++ {
+		// 	sum += len(paddedTuples[i-1]) // Adjust index to access the correct tuple
+		// 	buffer.Write(padLeftHex(sum + paddedTuplesLen*32))
+		// }
+
+		// for _, paddedTuple := range paddedTuples {
+		// 	buffer.Write(paddedTuple)
+		// }
+
+		// testBytes2, _ := GetViewCallBytes(*client, parsedABIs["Multicall"], "multicallExecuteAll", calls3)
+		// //testBytes2, err := parsedABIs["Multicall"].Pack("multicallExecuteAll", &calls3)
+		// if err != nil {
+		// 	fmt.Println(calls3)
+		// 	fmt.Println(err)
+		// 	errInternal(w)
+		// 	return
+		// }
+		// bufferBytes := buffer.Bytes()
 		results2 = append(results2, Test{Success: true, ReturnData: common.Bytes2Hex(bytecode)})
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		// w.Write(common.Bytes2Hex(returnData))
+		// // fghj := common.Hex2Bytes("0x234567898765")
+		// version := Version{Version: common.Bytes2Hex(returnData)}
+		// version := chainInfo
+		// compare := Compare{Correct: common.Bytes2Hex(testData), Test: common.Bytes2Hex(returnData)}
+		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(results2); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1751,114 +1943,6 @@ func GetLatestBlock(client ethclient.Client) (*Block, error) {
 	}
 
 	return _block, nil
-}
-
-// case "0x310C5", "200901": // bitlayer mainnet
-// case "0xE35", "3637": // botanix mainnet
-// case "0xC4", "196": // x layer mainnet
-// case "0xA4EC", "42220": // celo mainnet
-// case "0x82750", "534352": // scroll mainnet
-// case "0xA", "10": // op mainnet
-// case "0xA4B1", "42161": // arbitrum one
-// case "0x2105", "8453": // base mainnet
-// case "0x13A", "314": // filecoin mainnet
-// case "0x63630000", "1667432448": // tvm workchain_id == 0
-// case "0x53564D0001", "357930172419": // solana mainnet
-// case "0xBF04", "48900": // zircuit mainnet
-func checkChainType(chainId string) (string, []int, []int, error) { // out: vm, entrypointType, escrowTyoe, error
-	disabled := fmt.Errorf("unsupported chain ID: %s", chainId)
-	switch chainId {
-	case "0x3106A", "200810": // bitlayer testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0x4268", "17000": // holesky
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0xAA36A7", "11155111": // sepolia
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0xE34", "3636": // botanix testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, disabled
-	case "0xF35A", "62298": // citrea testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0x13881", "80001": // matic mumbai
-		return "evm", nil, nil, disabled
-	case "0x13882", "80002": // matic amoy
-		return "evm", nil, nil, disabled
-	case "0xC3", "195": // x layer testnet
-		return "evm", nil, nil, disabled
-	case "0xAEF3", "44787": // celo alfajores
-		return "evm", nil, nil, disabled
-	case "0x5E9", "1513": // story testnet
-		return "evm", nil, nil, disabled
-	case "0x8274F", "534351": // scroll testnet
-		return "evm", nil, nil, disabled
-	case "0xAA37DC", "11155420": // op sepolia
-		return "evm", nil, nil, disabled
-	case "0x66EEE", "421614": // arbitrum sepolia
-		return "evm", nil, nil, disabled
-	case "0x14A34", "84532": // base sepolia
-		return "evm", nil, nil, disabled
-	case "0x4CB2F", "314159": // filecoin calibration
-		return "evm", nil, nil, disabled
-	case "0xBF03", "48899": // zircuit testnet
-		return "evm", nil, nil, disabled
-	case "0x63639999", "1667471769": // tvm workchain_id == -1
-		return "evm", []int{2}, []int{0, 1, 2}, nil
-	case "0x53564D0002", "357930172418": // solana devnet
-		return "svm", nil, nil, disabled
-	case "0x53564D0003", "357930172419": // solana testnet
-		return "svm", nil, nil, disabled
-	case "0x53564D0004", "357930172420": // eclipse (solana) testnet
-		return "svm", nil, nil, disabled
-	default:
-		return "NaN", nil, nil, disabled
-	}
-}
-
-func hasInt(inputArray []int, input int) error {
-	for value := range inputArray {
-		if value == input {
-			return nil
-		}
-	}
-	return fmt.Errorf("int not found in input array")
-}
-
-//unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit := createEscrowBytecode(signer, originId, assetAddress, assetAmount)
-
-func createEscrowBytecode(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	chainType, entrypointTypes, _, err := checkChainType(originId)
-	if err != nil {
-		return "", "", err
-	}
-	err = hasInt(entrypointTypes, messageTypeInt)
-	if err != nil {
-		return "", "", err
-	}
-	switch chainType {
-	case "evm":
-		return createEscrowBytecodeEVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	case "tvm":
-		return createEscrowBytecodeTVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	case "svm":
-		return createEscrowBytecodeSVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	default:
-		return "", "", &Error{
-			Code:    500,
-			Message: "Internal error: chain type could not be determined",
-		}
-	}
-}
-
-// still require the messageTypeInt because we allow for multiple signature schema
-func createEscrowBytecodeEVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
-}
-
-func createEscrowBytecodeTVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
-}
-
-func createEscrowBytecodeSVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
 }
 
 func checkChainStatus(chainId string) (*ethclient.Client, *Chain, error) {

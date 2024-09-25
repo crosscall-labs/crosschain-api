@@ -146,16 +146,6 @@ type PackedUserOperationResponse struct {
 	Signature          string `json:"signature"`
 }
 
-type PaymasterAndData struct {
-	Paymaster    string `json:"paymaster"`
-	Signer       string `json:"signer"`
-	Escrow       string `json:"escrow"`
-	TargetDomain string `json:"target-domain"`
-	AssetAddress string `json:"asset-address"`
-	AssetAmount  string `json:"asset-amount"`
-	Calldata     string `json:"calldata"`
-}
-
 type UnsignedDataResponse struct {
 	Signer        string                      `json:"signer"`
 	ScwInit       bool                        `json:"swc-init"`
@@ -165,19 +155,6 @@ type UnsignedDataResponse struct {
 	EscrowValue   string                      `json:"escrow-value"`  // need to implement
 	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
 	UserOpHash    string                      `json:"userop-hash"`
-}
-
-type UnsignedDataResponse2 struct {
-	Signer           string                      `json:"signer"`
-	ScwInit          bool                        `json:"swc-init"`
-	Escrow           string                      `json:"escrow"`
-	EscrowInit       string                      `json:"escrow-init"`
-	EscrowPayload    string                      `json:"escrow-payload"`
-	EscrowAsset      string                      `json:"escrow-asset"`
-	EscrowValue      string                      `json:"escrow-value"`  // need to implement
-	UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-	UserOpHash       string                      `json:"userop-hash"`
 }
 
 var privateKey *ecdsa.PrivateKey
@@ -223,7 +200,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	copy(SALT[:], saltHash[:]) // 55
 
 	query := r.URL.Query()
-	messageType := query.Get("msg-type")
 	signer := query.Get("signer")
 	chainId := query.Get("chain-id")
 	destinationId := query.Get("destination-id")
@@ -293,113 +269,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// goal is to have selection routing
 	switch r.URL.Query().Get("query") {
 	case "version":
-		version := Version{Version: "Crosschain DEX API v0.0.4"}
+		version := Version{Version: "Luban DEX API v0.0.3"}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(version); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// messaeType enum: legacy, ecdsa, eddsa, secp256k1, secp256r1, secp256k1-1byte
-	case "unsigned-bytecode2":
-		if messageType == "" ||
-			signer == "" ||
-			destinationId == "" ||
-			originId == "" ||
-			assetAddress == "" ||
-			assetAmount == "" ||
-			calldata == "" {
-			errMalformedRequest(w)
-			return
-		}
-		messageTypeInt, err := strconv.Atoi(messageType)
-		if err != nil {
-			fmt.Println("Invalid integer string:", err)
-			errMalformedRequest(w)
-			return
-		}
-
-		var unsignedDataResponse UnsignedDataResponse2
-
-		// need to refactor this api as root handler and modularize evm/svm handling
-		// func checkChainType(chainId string, messageType int) (string, error)
-		// return type "evm", "tvm", "svm"
-		chainType, entrypointTypes, _, err := checkChainType(originId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		switch chainType {
-		case "evm":
-			err := hasInt(entrypointTypes, messageTypeInt)
-			if err != nil {
-				json.NewEncoder(w).Encode(err)
-				return
-			}
-			// type UnsignedDataResponse2 struct {
-			// 	Signer           string                      `json:"signer"`
-			// 	ScwInit          bool                        `json:"swc-init"`
-			// 	Escrow           string                      `json:"escrow"`
-			// 	EscrowInit       bool                        `json:"escrow-init"`
-			// 	EscrowPayload    string                      `json:"escrow-payload"`
-			// 	EscrowAsset      string                      `json:"escrow-asset"`
-			// 	EscrowValue      string                      `json:"escrow-value"`  // need to implement
-			// 	UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-			// 	PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-			// 	UserOpHash       string                      `json:"userop-hash"`
-			// }
-			// for tvm this is the escrow factory not the tba escrow address
-			//func createEscrowBytecode(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-			unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit, err = createEscrowBytecode(messageTypeInt, signer, originId, assetAddress, assetAmount) // but need to build the uerop to estimate bid cost
-			if err != nil {
-				json.NewEncoder(w).Encode(err)
-				return
-			}
-
-			//createUserOpBytecode(messageType, signer, originId, destinationId, assetAddress, assetAmount, calldata, escrowAddress)
-			// escrow address
-			// escrow factory
-			// data to create escrow
-			// data to deposit and lock
-			// data to extendlocktime
-			// combined call to gas savings
-
-			// the
-
-		}
-		chainType, _, escrowTypes, err := checkChainType(destinationId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		fmt.Printf("escrowTypes: %s", escrowTypes)
-
-		// if chainType0 == 0 || chainType0 == 1 {
-		// 	// this will call evm api
-		// 	// evaluate escrow
-		// }
-
-		client, chainInfo, err := checkChainStatus(originId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		if client == nil {
-			errUnsupportedChain(w)
-			return
-		}
-		fmt.Printf("chainInfo: %s", chainInfo)
-
-		client2, chainInfo2, err := checkChainStatus(destinationId)
-		if err != nil {
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-		if client2 == nil {
-			errUnsupportedChain(w)
-			return
-		}
-		fmt.Printf("chainInfo2: %s", chainInfo2)
-
 	case "unsigned-bytecode":
 		if signer == "" ||
 			destinationId == "" ||
@@ -1175,6 +1050,15 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	case "test_tkn":
+		// the goal for the test tkn tag is to execute the crosschain transactons using
+		// only tokens (for beta use)
+		// need to build the transaction around what will be done and work backwards
+		//
+		// user wants tkn alpha on chain A but has tkn beta on chain B
+		// we want to place tokens in the users escrow, then build the calldata to execute the mint of tokens o the wallet or do mint call then transfer call
+		// 		the later will be the process by which swap intents will likely be fulfilled
+		// because we are accepting tokens the contract functions must be verified to be able to handle tokens
 	default:
 		version := "Hello, World!"
 		w.Header().Set("Content-Type", "application/json")
@@ -1751,114 +1635,6 @@ func GetLatestBlock(client ethclient.Client) (*Block, error) {
 	}
 
 	return _block, nil
-}
-
-// case "0x310C5", "200901": // bitlayer mainnet
-// case "0xE35", "3637": // botanix mainnet
-// case "0xC4", "196": // x layer mainnet
-// case "0xA4EC", "42220": // celo mainnet
-// case "0x82750", "534352": // scroll mainnet
-// case "0xA", "10": // op mainnet
-// case "0xA4B1", "42161": // arbitrum one
-// case "0x2105", "8453": // base mainnet
-// case "0x13A", "314": // filecoin mainnet
-// case "0x63630000", "1667432448": // tvm workchain_id == 0
-// case "0x53564D0001", "357930172419": // solana mainnet
-// case "0xBF04", "48900": // zircuit mainnet
-func checkChainType(chainId string) (string, []int, []int, error) { // out: vm, entrypointType, escrowTyoe, error
-	disabled := fmt.Errorf("unsupported chain ID: %s", chainId)
-	switch chainId {
-	case "0x3106A", "200810": // bitlayer testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0x4268", "17000": // holesky
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0xAA36A7", "11155111": // sepolia
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0xE34", "3636": // botanix testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, disabled
-	case "0xF35A", "62298": // citrea testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
-	case "0x13881", "80001": // matic mumbai
-		return "evm", nil, nil, disabled
-	case "0x13882", "80002": // matic amoy
-		return "evm", nil, nil, disabled
-	case "0xC3", "195": // x layer testnet
-		return "evm", nil, nil, disabled
-	case "0xAEF3", "44787": // celo alfajores
-		return "evm", nil, nil, disabled
-	case "0x5E9", "1513": // story testnet
-		return "evm", nil, nil, disabled
-	case "0x8274F", "534351": // scroll testnet
-		return "evm", nil, nil, disabled
-	case "0xAA37DC", "11155420": // op sepolia
-		return "evm", nil, nil, disabled
-	case "0x66EEE", "421614": // arbitrum sepolia
-		return "evm", nil, nil, disabled
-	case "0x14A34", "84532": // base sepolia
-		return "evm", nil, nil, disabled
-	case "0x4CB2F", "314159": // filecoin calibration
-		return "evm", nil, nil, disabled
-	case "0xBF03", "48899": // zircuit testnet
-		return "evm", nil, nil, disabled
-	case "0x63639999", "1667471769": // tvm workchain_id == -1
-		return "evm", []int{2}, []int{0, 1, 2}, nil
-	case "0x53564D0002", "357930172418": // solana devnet
-		return "svm", nil, nil, disabled
-	case "0x53564D0003", "357930172419": // solana testnet
-		return "svm", nil, nil, disabled
-	case "0x53564D0004", "357930172420": // eclipse (solana) testnet
-		return "svm", nil, nil, disabled
-	default:
-		return "NaN", nil, nil, disabled
-	}
-}
-
-func hasInt(inputArray []int, input int) error {
-	for value := range inputArray {
-		if value == input {
-			return nil
-		}
-	}
-	return fmt.Errorf("int not found in input array")
-}
-
-//unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit := createEscrowBytecode(signer, originId, assetAddress, assetAmount)
-
-func createEscrowBytecode(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	chainType, entrypointTypes, _, err := checkChainType(originId)
-	if err != nil {
-		return "", "", err
-	}
-	err = hasInt(entrypointTypes, messageTypeInt)
-	if err != nil {
-		return "", "", err
-	}
-	switch chainType {
-	case "evm":
-		return createEscrowBytecodeEVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	case "tvm":
-		return createEscrowBytecodeTVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	case "svm":
-		return createEscrowBytecodeSVM(messageTypeInt, signer, originId, assetAddress, assetAmount)
-	default:
-		return "", "", &Error{
-			Code:    500,
-			Message: "Internal error: chain type could not be determined",
-		}
-	}
-}
-
-// still require the messageTypeInt because we allow for multiple signature schema
-func createEscrowBytecodeEVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
-}
-
-func createEscrowBytecodeTVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
-}
-
-func createEscrowBytecodeSVM(messageTypeInt int, signer string, originId string, assetAddress string, assetAmount string) (string, string, error) {
-	return "", "", nil
 }
 
 func checkChainStatus(chainId string) (*ethclient.Client, *Chain, error) {
