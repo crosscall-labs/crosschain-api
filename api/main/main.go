@@ -61,6 +61,7 @@ type SignedBytecodeParams struct {
 type Error struct {
 	Code    uint64 `json:"code"`
 	Message string `json:"message"`
+	Details string `json:"details"`
 }
 
 type Chain struct {
@@ -2016,16 +2017,13 @@ func errPaymasterAndDataMismatch(w http.ResponseWriter) {
 
 func errMalformedRequest(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest) // 400 Bad Request
+	w.WriteHeader(http.StatusBadRequest)
 
-	response := map[string]interface{}{
-		"code":    400,
-		"message": "Malformed request",
-		"details": message,
-	}
-
-	// Encode the map as JSON and write it to the response
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(&Error{
+		Code:    400,
+		Message: "Malformed request",
+		Details: message,
+	})
 }
 
 func errInternal(w http.ResponseWriter) {
