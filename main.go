@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	Handler "handler/api"
 	EvmHandler "handler/api/evm"
+	Handler "handler/api/main"
 	SvmHandler "handler/api/svm"
 	"log"
 	"net/http"
@@ -17,7 +17,7 @@ func main() {
 		fmt.Println("Error loading .env file")
 	}
 
-	http.HandleFunc("/", Handler.Handler)
+	http.HandleFunc("/api/main", Handler.Handler)
 	http.HandleFunc("/api/evm", EvmHandler.Handler)
 	http.HandleFunc("/api/svm", SvmHandler.Handler)
 	// http.HandleFunc("/", Handler.Handler) // tvm is currently in ts
