@@ -57,6 +57,11 @@ type SignedBytecodeParams struct {
 	UseropSignature          string `query:"useropSignature"`
 }
 
+type SignedEscrowPayoutParams struct {
+	Bytecode string `query:"data"`
+	TraceId  string `query:"traceid"`
+}
+
 // Error data structure
 type Error struct {
 	Code    uint64 `json:"code"`
@@ -436,6 +441,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	case "signed-bytecode":
 		SignedBytecode(w, r)
+	case "signed-escrow-payout":
+		// will add env restriction on origin later
+		SignedEscrowPayout(w, r)
+		return
 	default:
 		version := "Hello, World!"
 		w.Header().Set("Content-Type", "application/json")
@@ -1073,6 +1082,17 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	// 	return
 	// }
+}
+
+func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
+	params := &SignedEscrowPayoutParams{}
+
+	if !parseAndValidateParams(w, r, params) {
+		return
+	}
+
+	fmt.Printf("\ninput data: %s", params.Bytecode)
+	fmt.Printf("\ntrace id: %s", params.TraceId)
 }
 
 func parseAndValidateParams(w http.ResponseWriter, r *http.Request, params interface{}) bool {
