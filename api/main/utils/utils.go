@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func WriteJSONResponse(w http.ResponseWriter, message string) {
+func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": message,

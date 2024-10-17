@@ -319,7 +319,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 func TestRun(w http.ResponseWriter, r *http.Request) {
 	// Call the function from utils.go to write a JSON response
 	//WriteJSONResponse(w, "TestRun executed successfully")
-	utils.WriteJSONResponse(w, "Hello from handler")
+	utils.WriteJSONResponse(w, r, "Hello, World!")
 }
 
 func Version(w http.ResponseWriter) {
