@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/laminafinance/crosschain-api/api/main/utils"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -317,7 +318,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 func TestRun(w http.ResponseWriter, r *http.Request) {
 	// Call the function from utils.go to write a JSON response
-	WriteJSONResponse(w, "TestRun executed successfully")
+	//WriteJSONResponse(w, "TestRun executed successfully")
+	utils.WriteJSONResponse(w, "Hello from handler")
 }
 
 func Version(w http.ResponseWriter) {
