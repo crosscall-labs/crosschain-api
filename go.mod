@@ -1,4 +1,4 @@
-module handler
+module github.com/laminafinance/crosschain-api
 
 go 1.21.1
 
