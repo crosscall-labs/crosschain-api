@@ -305,6 +305,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		TestRun(w, r)
 		return
 	case "test-run":
+		TestRun(w, r)
 		return
 	default:
 		version := "Hello, World!"
@@ -319,13 +320,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 func TestRun(w http.ResponseWriter, r *http.Request) {
 	// Call the function from utils.go to write a JSON response
 	//WriteJSONResponse(w, "TestRun executed successfully")
-	message := utils.WriteJSONResponse("Hello, World!")
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(message); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	utils.WriteJSONResponse(w, r, "Hello, World!")
 }
 
 func Version(w http.ResponseWriter) {
