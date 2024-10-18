@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	EvmHandler "github.com/laminafinance/crosschain-api/api/evm"
+	InfoHandler "github.com/laminafinance/crosschain-api/api/info"
 	Handler "github.com/laminafinance/crosschain-api/api/main"
 	SvmHandler "github.com/laminafinance/crosschain-api/api/svm"
 
@@ -19,6 +20,7 @@ func main() {
 	}
 
 	http.HandleFunc("/api/main", Handler.Handler)
+	http.HandleFunc("/api/info", InfoHandler.Handler)
 	http.HandleFunc("/api/evm", EvmHandler.Handler)
 	http.HandleFunc("/api/svm", SvmHandler.Handler)
 	// http.HandleFunc("/", Handler.Handler) // tvm is currently in ts
