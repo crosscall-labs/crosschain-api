@@ -25,6 +25,7 @@ import (
 
 	//"github.com/laminafinance/crosschain-api/api/main/utils"
 	"github.com/laminafinance/crosschain-api/internal/utils"
+	"github.com/laminafinance/crosschain-api/main/handler"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -32,15 +33,15 @@ import (
 // 	Version string `json:"version"`
 // }
 
-type UnsignedBytecodeParams struct {
-	MessageType  string `query:"msg-type" optional:"true"`
-	Signer       string `query:"signer"`
-	TargetId     string `query:"destination-id"`
-	OriginId     string `query:"origin-id"`
-	AssetAmount  string `query:"asset-amount"`
-	AssetAddress string `query:"asset-address"`
-	Calldata     string `query:"calldata" optional:"true"`
-}
+// type UnsignedBytecodeParams struct {
+// 	MessageType  string `query:"msg-type" optional:"true"`
+// 	Signer       string `query:"signer"`
+// 	TargetId     string `query:"destination-id"`
+// 	OriginId     string `query:"origin-id"`
+// 	AssetAmount  string `query:"asset-amount"`
+// 	AssetAddress string `query:"asset-address"`
+// 	Calldata     string `query:"calldata" optional:"true"`
+// }
 
 type SignedBytecodeParams struct {
 	Signer                   string `query:"signer"`
@@ -333,7 +334,7 @@ func Version(w http.ResponseWriter) {
 }
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
-	params := &UnsignedBytecodeParams{}
+	params := &handler.UnsignedBytecodeParams{}
 
 	// Parse and validate query parameters
 	if !utils.ParseAndValidateParams(w, r, params) {
