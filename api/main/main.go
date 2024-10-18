@@ -22,207 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	//"github.com/laminafinance/crosschain-api/api/main/utils"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"golang.org/x/crypto/sha3"
 )
-
-// type VersionResponse struct {
-// 	Version string `json:"version"`
-// }
-
-// type UnsignedBytecodeParams struct {
-// 	MessageType  string `query:"msg-type" optional:"true"`
-// 	Signer       string `query:"signer"`
-// 	TargetId     string `query:"destination-id"`
-// 	OriginId     string `query:"origin-id"`
-// 	AssetAmount  string `query:"asset-amount"`
-// 	AssetAddress string `query:"asset-address"`
-// 	Calldata     string `query:"calldata" optional:"true"`
-// }
-
-type SignedBytecodeParams struct {
-	Signer                   string `query:"signer"`
-	DestinationId            string `query:"destination-id"`
-	OriginId                 string `query:"origin-id"`
-	AssetAddress             string `query:"asset-address"`
-	AssetAmount              string `query:"asset-amount"`
-	UseropSender             string `query:"useropSender"`
-	UseropNonce              string `query:"useropNonce"`
-	UseropInitCode           string `query:"useropInitCode" optional:"true"`
-	UseropCallData           string `query:"useropCallData"`
-	UseropAccountGasLimit    string `query:"useropAccountGasLimit"`
-	UseropPreVerificationGas string `query:"useropPreVerificationGas"`
-	UseropGasFees            string `query:"useropGasFees"`
-	UseropPaymasterAndData   string `query:"useropPaymasterAndData"`
-	UseropSignature          string `query:"useropSignature"`
-}
-
-type SignedEscrowPayoutParams struct {
-	Bytecode string `query:"data"`
-	TraceId  string `query:"traceid"`
-}
-
-// Error data structure
-// type Error struct {
-// 	Code    uint64 `json:"code"`
-// 	Message string `json:"message"`
-// 	Details string `json:"details"`
-// }
-
-type Chain struct {
-	ChainId                      string
-	Domain                       uint32
-	AddressEntrypoint            string
-	AddressEntrypointSimulations string
-	AddressSimpleAccountFactory  string
-	AddressSimpleAccount         string
-	AddressMulticall             string
-	AddressHyperlaneMailbox      string
-	AddressHyperlaneIgp          string
-	AddressPaymaster             string
-	AddressEscrow                string
-	AddressEscrowFactory         string
-}
-
-type Call struct {
-	Target   common.Address
-	CallData []byte
-}
-
-type Call3 struct {
-	Target   common.Address
-	Value    *big.Int
-	CallData []byte
-}
-
-type Test struct {
-	Success    bool
-	ReturnData string
-}
-
-type TestBytecode struct {
-	Payload string `json:"payload"`
-}
-
-type Result struct {
-	Success    bool
-	ReturnData []byte
-}
-
-type Compare struct {
-	Correct string
-	Test    string
-}
-
-// Block data structure
-type Block struct {
-	BlockNumber       int64         `json:"blockNumber"`
-	Timestamp         uint64        `json:"timestamp"`
-	Difficulty        uint64        `json:"difficulty"`
-	Hash              string        `json:"hash"`
-	TransactionsCount int           `json:"transactionsCount"`
-	Transactions      []Transaction `json:"transactions"`
-}
-
-// Transaction data structure
-type Transaction struct {
-	Hash     string `json:"hash"`
-	Value    string `json:"value"`
-	Gas      uint64 `json:"gas"`
-	GasPrice uint64 `json:"gasPrice"`
-	Nonce    uint64 `json:"nonce"`
-	To       string `json:"to"`
-	Pending  bool   `json:"pending"`
-}
-
-// TransferEthRequest data structure
-type TransferEthRequest struct {
-	PrivKey string `json:"privKey"`
-	To      string `json:"to"`
-	Amount  int64  `json:"amount"`
-}
-
-type UserOperation struct {
-	Sender                string `json:"sender"`
-	Nonce                 string `json:"nonce"`
-	InitCode              string `json:"init-code"`
-	CallData              string `json:"call-data"`
-	CallGasLimit          string `json:"call-gas-limit"`
-	VerificationGasLimit  string `json:"verification-gas-limit"`
-	PreVerificationGas    string `json:"pre-verification-gas"`
-	MaxFeePerGas          string `json:"max-fee-per-gas"`
-	MaxPritorityFeePerGas string `json:"max-priority-fee-per-gas"`
-	PaymasterAndData      string `json:"paymaster-and-data"`
-	Signature             string `json:"signature"`
-}
-
-type PackedUserOperation struct {
-	Sender             common.Address
-	Nonce              *big.Int
-	InitCode           []byte
-	CallData           []byte
-	AccountGasLimits   [32]byte
-	PreVerificationGas *big.Int
-	GasFees            [32]byte
-	PaymasterAndData   []byte
-	Signature          []byte
-}
-
-type PackedUserOperationResponse struct {
-	Sender             string `json:"sender"`
-	Nonce              string `json:"nonce"`
-	InitCode           string `json:"init-code"`
-	CallData           string `json:"call-data"`
-	AccountGasLimits   string `json:"account-gas-limits"`
-	PreVerificationGas string `json:"pre-verification-gas"`
-	GasFees            string `json:"gas-fees"`
-	PaymasterAndData   string `json:"paymaster-and-data"`
-	Signature          string `json:"signature"`
-}
-
-type PaymasterAndData struct {
-	Paymaster    string `json:"paymaster"`
-	Signer       string `json:"signer"`
-	Escrow       string `json:"escrow"`
-	TargetDomain string `json:"target-domain"`
-	AssetAddress string `json:"asset-address"`
-	AssetAmount  string `json:"asset-amount"`
-	Calldata     string `json:"calldata"`
-}
-
-type UnsignedDataResponse struct {
-	Signer        string                      `json:"signer"`
-	ScwInit       bool                        `json:"swc-init"`
-	EscrowInit    bool                        `json:"escrow-init"`
-	EscrowPayload string                      `json:"escrow-payload"`
-	EscrowTarget  string                      `json:"escrow-target"`
-	EscrowValue   string                      `json:"escrow-value"`  // need to implement
-	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-	UserOpHash    string                      `json:"userop-hash"`
-}
-
-type UnsignedDataResponse2 struct {
-	Signer           string                      `json:"signer"`
-	ScwInit          bool                        `json:"swc-init"`
-	Escrow           string                      `json:"escrow"`
-	EscrowInit       string                      `json:"escrow-init"`
-	EscrowPayload    string                      `json:"escrow-payload"`
-	EscrowAsset      string                      `json:"escrow-asset"`
-	EscrowValue      string                      `json:"escrow-value"`  // need to implement
-	UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-	UserOpHash       string                      `json:"userop-hash"`
-}
-
-var privateKey *ecdsa.PrivateKey
-var relayAddress common.Address
-
-type TestReceipt struct {
-	Success string `json:"success"`
-	TxHash  string `json:"tx-hash"`
-}
 
 // need query for creating an escrow lock
 // this means that the query needs to call the escrow contract with the correct initializer data and salt
@@ -232,20 +34,23 @@ type TestReceipt struct {
 
 // need query for creating userop + scw initcode + paymasteranddata
 
+var privateKey *ecdsa.PrivateKey
+var relayAddress common.Address
+
 func Handler(w http.ResponseWriter, r *http.Request) {
 
 	privateKeyString := os.Getenv("RELAY_PRIVATE_KEY")
 	var err error
 	privateKey, err = crypto.HexToECDSA(privateKeyString)
 	if err != nil {
-		errInternal(w, fmt.Sprintf("Error converting private key: %v", err))
+		utils.ErrInternal(w, fmt.Sprintf("Error converting private key: %v", err))
 		return
 	}
 
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		errInternal(w, "Error casting public key to ECDSA")
+		utils.ErrInternal(w, "Error casting public key to ECDSA")
 		return
 	}
 
@@ -285,7 +90,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		parsedABI, err := abi.JSON(strings.NewReader(abiStr))
 		if err != nil {
 			fmt.Println(err)
-			errInternal(w, err.Error())
+			utils.ErrInternal(w, err.Error())
 			return
 		}
 		parsedABIs[name] = parsedABI
@@ -402,7 +207,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// initializerBytes, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "initialize", common.HexToAddress(signer), common.HexToAddress(chainInfo.AddressEscrow))
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -422,20 +227,20 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results, err := getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// if !results[0].Success {
 	// 	fmt.Printf("Escrow: getEscrowAddress failed for chain chain %s\n", chainInfo.ChainId)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults, err := parsedABIs["EscrowFactory"].Unpack("getEscrowAddress", results[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -459,20 +264,20 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results2, err := getMulticallViewResults(client2, parsedABIs, chainInfo2, calls2)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// if !results2[0].Success {
 	// 	fmt.Printf("SCW: getAddress failed for chain chain %s\n", chainInfo2.ChainId)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults2, err := parsedABIs["SimpleAccountFactory"].Unpack("getAddress", results2[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -497,14 +302,14 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results, err = getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults, err = parsedABIs["Multicall"].Unpack("getExtcodesize", results[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -530,14 +335,14 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results2, err = getMulticallViewResults(client2, parsedABIs, chainInfo2, calls2)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults, err = parsedABIs["Multicall"].Unpack("getExtcodesize", results2[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// extcodesize2 := parsedResults[0].(*big.Int)
@@ -545,7 +350,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// parsedResults2, err = parsedABIs["Entrypoint"].Unpack("getNonce", results2[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// scwNonce := parsedResults2[0].(*big.Int)
@@ -617,7 +422,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// escrowPayload, err := getMulticallExecuteAllBytecode(client, parsedABIs, chainInfo, executionCalls)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// unsignedDataResponse.EscrowPayload = "0x" + common.Bytes2Hex(escrowPayload)
@@ -627,7 +432,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// initcodeCall, err := GetViewCallBytes(*client2, parsedABIs["SimpleAccountFactory"], "createAccount", common.HexToAddress(signer), new(big.Int).SetBytes(SALT[:]))
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// fmt.Println("got this far9")
@@ -652,7 +457,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err := strconv.Atoi(chainInfo.ChainId)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// paymasterTarget := padLeftHex(someint)
@@ -660,7 +465,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.Atoi(assetAmount)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// paymasterAmount := padLeftHex(someint)
@@ -677,7 +482,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// returnData, err := ViewFunction(*client2, common.HexToAddress(chainInfo2.AddressEntrypoint), parsedABIs["Entrypoint"], "getUserOpHash", packedUserOperation)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// unsignedDataResponse.UserOpHash = "0x" + common.Bytes2Hex(returnData)
@@ -727,7 +532,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.ParseInt(useropNonce, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// packedUserOperation.Nonce = big.NewInt(someint)
@@ -735,7 +540,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.ParseInt(useropPreVerificationGas, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// packedUserOperation.PreVerificationGas = big.NewInt(someint)
@@ -747,7 +552,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.ParseInt(originId, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// paymasterOrigin := padLeftHex(int(someint))
@@ -755,7 +560,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.ParseInt(assetAmount, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// paymasterAmount := padLeftHex(int(someint))
@@ -776,7 +581,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// initializerBytes, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "initialize", common.HexToAddress(signer), common.HexToAddress(chainInfo.AddressEscrow))
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -796,20 +601,20 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results, err := getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// if !results[0].Success {
 	// 	fmt.Printf("Escrow: getEscrowAddress failed for chain chain %s\n", chainInfo.ChainId)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults, err := parsedABIs["EscrowFactory"].Unpack("getEscrowAddress", results[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -836,14 +641,14 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// results, err = getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// parsedResults, err = parsedABIs["Multicall"].Unpack("getExtcodesize", results[0].ReturnData)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -858,14 +663,14 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// escrowBalance, err := client.BalanceAt(context.Background(), escrowAddress, nil)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
 	// someint, err = strconv.ParseInt(assetAmount, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// compareResult := escrowBalance.Cmp(big.NewInt(someint))
@@ -894,7 +699,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// someint, err = strconv.ParseInt(assetAmount, 10, 64)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 	// // datainput, err := parsedABIs["Entrypoint"].Pack("handleOps", executablePackedUserop, common.HexToAddress("0xaeD6b252635DcEF5Ba85dE52173FF040a18CEC6a"))
@@ -936,7 +741,7 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	// receipt, err := TransferEth(*client, "8e80f019af2ae825c10e261594aa7ce5f8898fcc30eec7a25110a906914968d7", signer, someint)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	errInternal(w)
+	// 	utils.ErrInternal(w)
 	// 	return
 	// }
 
@@ -1665,7 +1470,7 @@ func hasInt(inputArray []int, input int) error {
 // 	initializerBytes, err := GetViewCallBytes(*client, parsedABIs["Escrow"], "initialize", common.HexToAddress(signer), common.HexToAddress(chainInfo.AddressEscrow))
 // 	if err != nil {
 // 		fmt.Println(err)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 
@@ -1685,20 +1490,20 @@ func hasInt(inputArray []int, input int) error {
 // 	results, err := getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 // 	if err != nil {
 // 		fmt.Println(err)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 
 // 	if !results[0].Success {
 // 		fmt.Printf("Escrow: getEscrowAddress failed for chain chain %s\n", chainInfo.ChainId)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 
 // 	parsedResults, err := parsedABIs["EscrowFactory"].Unpack("getEscrowAddress", results[0].ReturnData)
 // 	if err != nil {
 // 		fmt.Println(err)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 
@@ -1720,14 +1525,14 @@ func hasInt(inputArray []int, input int) error {
 // 	results, err = getMulticallViewResults(client, parsedABIs, chainInfo, calls)
 // 	if err != nil {
 // 		fmt.Println(err)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 
 // 	parsedResults, err = parsedABIs["Multicall"].Unpack("getExtcodesize", results[0].ReturnData)
 // 	if err != nil {
 // 		fmt.Println(err)
-// 		errInternal(w)
+// 		utils.ErrInternal(w)
 // 		return
 // 	}
 // 	return "", "", nil
@@ -1852,51 +1657,4 @@ func checkClient(w http.ResponseWriter, chainId string) (*ethclient.Client, *Cha
 		return nil, nil, false
 	}
 	return client, chainInfo, true
-}
-
-func errUnsupportedChain(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    0,
-		Message: "Chain not currently supported",
-	})
-}
-
-func errPaymasterAndDataMismatch(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    7,
-		Message: "PaymasterAndData mismatch",
-	})
-}
-
-func errInternal(w http.ResponseWriter, message string) {
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    500,
-		Message: "Internal server error",
-		Details: message,
-	})
-}
-
-func errRpcFailed(w http.ResponseWriter) {
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    501,
-		Message: "Internal server error: RPC connection failed",
-	})
-}
-
-func errEscrowNotFound(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    1000,
-		Message: "Escrow address not exist",
-	})
-}
-
-func errInsufficientEscrowBalance(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    1001,
-		Message: "Insufficient escrow balance",
-	})
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	// "github.com/laminafinance/crosschain-api/internal/utils"
 )
 
 func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
