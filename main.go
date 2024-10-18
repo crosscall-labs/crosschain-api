@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	EvmHandler "handler/api/evm"
-	Handler "handler/api/main"
-	SvmHandler "handler/api/svm"
 	"log"
 	"net/http"
+
+	EvmHandler "github.com/laminafinance/crosschain-api/api/evm"
+	Handler "github.com/laminafinance/crosschain-api/api/main"
+	SvmHandler "github.com/laminafinance/crosschain-api/api/svm"
 
 	"github.com/joho/godotenv"
 )
