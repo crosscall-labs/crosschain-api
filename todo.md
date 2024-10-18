@@ -1,6 +1,6 @@
 ### TODO
-- [ ] host
+- [x] host
 - [ ] change to gRPC
 - [ ] test messages
 - [ ] test github action
-- [ ] modulate project 
+- [x] modulate project 

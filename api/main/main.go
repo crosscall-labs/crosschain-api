@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -23,13 +22,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/laminafinance/crosschain-api/api/main/utils"
+
+	//"github.com/laminafinance/crosschain-api/api/main/utils"
+	"github.com/laminafinance/crosschain-api/internal/utils"
 	"golang.org/x/crypto/sha3"
 )
 
-type VersionResponse struct {
-	Version string `json:"version"`
-}
+// type VersionResponse struct {
+// 	Version string `json:"version"`
+// }
 
 type UnsignedBytecodeParams struct {
 	MessageType  string `query:"msg-type" optional:"true"`
@@ -64,11 +65,11 @@ type SignedEscrowPayoutParams struct {
 }
 
 // Error data structure
-type Error struct {
-	Code    uint64 `json:"code"`
-	Message string `json:"message"`
-	Details string `json:"details"`
-}
+// type Error struct {
+// 	Code    uint64 `json:"code"`
+// 	Message string `json:"message"`
+// 	Details string `json:"details"`
+// }
 
 type Chain struct {
 	ChainId                      string
@@ -324,7 +325,7 @@ func TestRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func Version(w http.ResponseWriter) {
-	versionResponse := VersionResponse{Version: "Crosschain DEX API v0.0.4"}
+	versionResponse := utils.VersionResponse{Version: "Crosschain DEX API v0.0.4"}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(versionResponse); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -335,7 +336,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	params := &UnsignedBytecodeParams{}
 
 	// Parse and validate query parameters
-	if !parseAndValidateParams(w, r, params) {
+	if !utils.ParseAndValidateParams(w, r, params) {
 		return
 	}
 
@@ -692,7 +693,7 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 	params := &SignedBytecodeParams{}
 
-	if !parseAndValidateParams(w, r, params) {
+	if !utils.ParseAndValidateParams(w, r, params) {
 		return
 	}
 
@@ -977,7 +978,7 @@ func UnsignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 	params := &SignedEscrowPayoutParams{}
 
-	if !parseAndValidateParams(w, r, params) {
+	if !utils.ParseAndValidateParams(w, r, params) {
 		return
 	}
 	/*
@@ -994,38 +995,6 @@ func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("\ninput data: %s", params.Bytecode)
 	fmt.Printf("\ntrace id: %s", params.TraceId)
-}
-
-func parseAndValidateParams(w http.ResponseWriter, r *http.Request, params interface{}) bool {
-	val := reflect.ValueOf(params).Elem() // Dereference the pointer to access the underlying struct
-	typ := val.Type()
-
-	missingFields := []string{}
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		queryTag := fieldType.Tag.Get("query")
-		optionalTag := fieldType.Tag.Get("optional")
-
-		if queryTag != "" {
-			queryValue := r.URL.Query().Get(queryTag)
-
-			// If the field is required (i.e., optional is not set to "true")
-			if queryValue == "" && optionalTag != "true" {
-				missingFields = append(missingFields, queryTag)
-			} else if queryValue != "" {
-				field.SetString(queryValue)
-			}
-		}
-	}
-
-	if len(missingFields) > 0 {
-		errMalformedRequest(w, fmt.Sprintf("Missing parameters: %v", missingFields))
-		return false
-	}
-
-	return true
 }
 
 func ViewFunction(client ethclient.Client, contractAddress common.Address, parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
@@ -1887,7 +1856,7 @@ func checkClient(w http.ResponseWriter, chainId string) (*ethclient.Client, *Cha
 
 func errUnsupportedChain(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    0,
 		Message: "Chain not currently supported",
 	})
@@ -1895,25 +1864,14 @@ func errUnsupportedChain(w http.ResponseWriter) {
 
 func errPaymasterAndDataMismatch(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    7,
 		Message: "PaymasterAndData mismatch",
 	})
 }
 
-func errMalformedRequest(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-
-	json.NewEncoder(w).Encode(&Error{
-		Code:    400,
-		Message: "Malformed request",
-		Details: message,
-	})
-}
-
 func errInternal(w http.ResponseWriter, message string) {
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    500,
 		Message: "Internal server error",
 		Details: message,
@@ -1921,7 +1879,7 @@ func errInternal(w http.ResponseWriter, message string) {
 }
 
 func errRpcFailed(w http.ResponseWriter) {
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    501,
 		Message: "Internal server error: RPC connection failed",
 	})
@@ -1929,7 +1887,7 @@ func errRpcFailed(w http.ResponseWriter) {
 
 func errEscrowNotFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    1000,
 		Message: "Escrow address not exist",
 	})
@@ -1937,12 +1895,8 @@ func errEscrowNotFound(w http.ResponseWriter) {
 
 func errInsufficientEscrowBalance(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&Error{
+	json.NewEncoder(w).Encode(&utils.Error{
 		Code:    1001,
 		Message: "Insufficient escrow balance",
 	})
-}
-
-func (e Error) Error() string {
-	return fmt.Sprintf("Error (Code: %d, Message: %s)", e.Code, e.Message)
 }
