@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	//"github.com/laminafinance/crosschain-api/api/main/utils"
-	Handler2 "github.com/laminafinance/crosschain-api/api/main"
+	Handler2 "github.com/laminafinance/crosschain-api/api/main/handler"
 	"github.com/laminafinance/crosschain-api/internal/utils"
 	"golang.org/x/crypto/sha3"
 )
