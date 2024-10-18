@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	//"github.com/laminafinance/crosschain-api/api/main/utils"
-	Handler2 "github.com/laminafinance/crosschain-api/api/main/handler"
 	"github.com/laminafinance/crosschain-api/internal/utils"
 	"golang.org/x/crypto/sha3"
 )
@@ -334,7 +333,7 @@ func Version(w http.ResponseWriter) {
 }
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
-	params := &Handler2.UnsignedBytecodeParams{}
+	params := &UnsignedBytecodeParams{}
 
 	// Parse and validate query parameters
 	if !utils.ParseAndValidateParams(w, r, params) {
