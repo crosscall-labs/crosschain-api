@@ -1,9 +1,9 @@
 {
   "builds": [
-    { "src": "api/main/handler.go", "use": "@vercel/go" },
-    { "src": "api/evm/handler.go", "use": "@vercel/go" },
-    { "src": "api/svm/handler.go", "use": "@vercel/go" },
-    { "src": "api/info/handler.go", "use": "@vercel/go" }
+    { "src": "api/main/handler", "use": "@vercel/go" },
+    { "src": "api/evm/handler", "use": "@vercel/go" },
+    { "src": "api/svm/handler", "use": "@vercel/go" },
+    { "src": "api/info/handler", "use": "@vercel/go" }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "api/main/main.go" }
