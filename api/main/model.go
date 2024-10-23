@@ -127,16 +127,16 @@ type PaymasterAndData struct {
 	Calldata     string `json:"calldata"`
 }
 
-type UnsignedDataResponse struct {
-	Signer        string                      `json:"signer"`
-	ScwInit       bool                        `json:"swc-init"`
-	EscrowInit    bool                        `json:"escrow-init"`
-	EscrowPayload string                      `json:"escrow-payload"`
-	EscrowTarget  string                      `json:"escrow-target"`
-	EscrowValue   string                      `json:"escrow-value"`  // need to implement
-	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-	UserOpHash    string                      `json:"userop-hash"`
-}
+// type UnsignedDataResponse struct {
+// 	Signer        string                      `json:"signer"`
+// 	ScwInit       bool                        `json:"swc-init"`
+// 	EscrowInit    bool                        `json:"escrow-init"`
+// 	EscrowPayload string                      `json:"escrow-payload"`
+// 	EscrowTarget  string                      `json:"escrow-target"`
+// 	EscrowValue   string                      `json:"escrow-value"`  // need to implement
+// 	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
+// 	UserOpHash    string                      `json:"userop-hash"`
+// }
 
 type UnsignedDataResponse2 struct {
 	Signer           string                      `json:"signer"`

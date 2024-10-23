@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
@@ -22,13 +23,22 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 
 	missingFields := []string{}
 
+	// Iterate through the fields in the struct
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 		queryTag := fieldType.Tag.Get("query")
 		optionalTag := fieldType.Tag.Get("optional")
 
-		if queryTag != "" {
+		if field.Kind() == reflect.Struct {
+			// Recursively parse nested struct fields
+			nestedParams := reflect.New(fieldType.Type).Interface()
+			if !ParseAndValidateParams(w, r, nestedParams) {
+				return false // If the nested struct has missing fields, return false
+			}
+			// After recursion, set the original struct's field value
+			field.Set(reflect.ValueOf(nestedParams).Elem())
+		} else if queryTag != "" {
 			queryValue := r.URL.Query().Get(queryTag)
 
 			// If the field is required (i.e., optional is not set to "true")
@@ -40,8 +50,9 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 		}
 	}
 
+	// If there are missing fields, return an error response
 	if len(missingFields) > 0 {
-		ErrMalformedRequest(w, fmt.Sprintf("Missing parameters: %v", missingFields))
+		http.Error(w, "Missing fields: "+strings.Join(missingFields, ", "), http.StatusBadRequest)
 		return false
 	}
 

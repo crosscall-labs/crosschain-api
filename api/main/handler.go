@@ -74,6 +74,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.URL.Query().Get("query") {
+	case "unsigned-message":
+		UnsignedMessage(w, r)
+		return
 	case "unsigned-bytecode":
 		UnsignedBytecode(w, r)
 		return
