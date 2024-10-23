@@ -25,15 +25,21 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func UnsignedRequestPayout(w http.ResponseWriter, r *http.Request) {
+func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	params := &UnsignedRequestParams{}
 
-	if !parseAndValidateParams(w, r, params) {
+	if !utils.ParseAndValidateParams(w, r, params) {
 		return
 	}
 }
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
+	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	fmt.Print(privateKey, relayAddress)
+	if err != nil {
+		utils.ErrInternal(w, err.Error())
+		return
+	}
 	params := &UnsignedBytecodeParams{}
 
 	// Parse and validate query parameters
@@ -393,6 +399,12 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 }
 
 func SignedBytecode(w http.ResponseWriter, r *http.Request) {
+	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	fmt.Print(privateKey, relayAddress)
+	if err != nil {
+		utils.ErrInternal(w, err.Error())
+		return
+	}
 	params := &SignedBytecodeParams{}
 
 	if !utils.ParseAndValidateParams(w, r, params) {
@@ -657,9 +669,15 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 }
 
 func UnsignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
+	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	fmt.Print(privateKey, relayAddress)
+	if err != nil {
+		utils.ErrInternal(w, err.Error())
+		return
+	}
 	// params := &UnsignedEscrowPayoutParams{}
 
-	// if !parseAndValidateParams(w, r, params) {
+	// if !utils.ParseAndValidateParams(w, r, params) {
 	// 	return
 	// }
 	/*
@@ -679,6 +697,12 @@ func UnsignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 }
 
 func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
+	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	fmt.Print(privateKey, relayAddress)
+	if err != nil {
+		utils.ErrInternal(w, err.Error())
+		return
+	}
 	params := &SignedEscrowPayoutParams{}
 
 	if !utils.ParseAndValidateParams(w, r, params) {

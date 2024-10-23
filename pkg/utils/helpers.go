@@ -1,11 +1,16 @@
 package utils
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
@@ -80,4 +85,26 @@ func ErrInternal(w http.ResponseWriter, message string) {
 		Message: "Internal server error",
 		Details: message,
 	})
+}
+
+func EnvKey2Ecdsa() (*ecdsa.PrivateKey, common.Address, error) {
+	return PrivateKey2Sepc256k1(os.Getenv("RELAY_PRIVATE_KEY"))
+}
+
+func PrivateKey2Sepc256k1(privateKeyString string) (privateKey *ecdsa.PrivateKey, publicAddress common.Address, err error) {
+	privateKey, err = crypto.HexToECDSA(privateKeyString)
+	if err != nil {
+		err = fmt.Errorf("Error converting private key: %v", err)
+		return
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		err = fmt.Errorf("Error casting public key to ECDSA")
+		return
+	}
+
+	publicAddress = crypto.PubkeyToAddress(*publicKeyECDSA)
+	return
 }

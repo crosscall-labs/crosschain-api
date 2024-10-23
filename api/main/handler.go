@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
@@ -27,22 +25,6 @@ var relayAddress common.Address
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 
-	privateKeyString := os.Getenv("RELAY_PRIVATE_KEY")
-	var err error
-	privateKey, err = crypto.HexToECDSA(privateKeyString)
-	if err != nil {
-		utils.ErrInternal(w, fmt.Sprintf("Error converting private key: %v", err))
-		return
-	}
-
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		utils.ErrInternal(w, "Error casting public key to ECDSA")
-		return
-	}
-
-	relayAddress = crypto.PubkeyToAddress(*publicKeyECDSA)
 	saltHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000037")
 
 	// Cast common.Hash to [32]byte
@@ -75,13 +57,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Query().Get("query") {
 	case "unsigned-message":
-		UnsignedMessage(w, r)
+		UnsignedRequest(w, r)
 		return
 	case "unsigned-bytecode":
 		UnsignedBytecode(w, r)
 		return
 	case "signed-bytecode":
 		SignedBytecode(w, r)
+		return
 	case "signed-escrow-payout":
 		// will add env restriction on origin later
 		SignedEscrowPayout(w, r)
