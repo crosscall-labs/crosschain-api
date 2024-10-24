@@ -1,10 +1,10 @@
-package spotHandler
+package evmHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
+
+	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
 // Error data structure
@@ -44,10 +44,13 @@ type HelloWorld struct {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	handlerWithCORS := EnableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerWithCORS := utils.EnableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 
 		switch query.Get("query") {
+		case "unsigned-escrow-request":
+			UnsignedRequest(w, r)
+			return
 		case "test":
 			var hellowWorld HelloWorld
 			hellowWorld.Test = "Hello, World!"
@@ -64,44 +67,4 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}))
 
 	handlerWithCORS.ServeHTTP(w, r)
-}
-
-func getSymbol(asset0, asset1 string) string {
-	if strings.ToUpper(asset0+asset1) == "BTCETH" {
-		return "ETHBTC"
-	}
-	return strings.ToUpper(asset0 + asset1)
-}
-
-func errMalformedRequest(w http.ResponseWriter) {
-	json.NewEncoder(w).Encode(&Error{
-		Code:    400,
-		Message: "Malformed request",
-	})
-}
-
-func errInternal(w http.ResponseWriter) {
-	json.NewEncoder(w).Encode(&Error{
-		Code:    500,
-		Message: "Internal server error",
-	})
-}
-
-func EnableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		fmt.Printf("Method: %s, URL: %s", r.Method, r.URL)
-
-		next.ServeHTTP(w, r)
-	})
 }
