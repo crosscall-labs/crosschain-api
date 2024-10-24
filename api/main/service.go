@@ -62,7 +62,7 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	// }
 }
 
-func UnsignedRequestEvm()
+//func UnsignedRequestEvm()
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
