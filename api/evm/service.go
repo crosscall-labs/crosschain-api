@@ -67,7 +67,7 @@ func UnsignedEntryPointRequest(w http.ResponseWriter, r *http.Request, parameter
 	}
 
 	var errorStr string
-	params.Header.ChainId, params.Header.ChainType, params.Header.ChainName, errorStr = utils.CheckChainPartialType(params.Header.ChainId, "entrypoint", params.Header.TxType)
+	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
 		if r == nil {
 			return nil, fmt.Errorf("%s", errorStr)
@@ -76,6 +76,23 @@ func UnsignedEntryPointRequest(w http.ResponseWriter, r *http.Request, parameter
 			return nil, nil
 		}
 	}
+	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
+	if errorStr != "" {
+		if r == nil {
+			return nil, fmt.Errorf("%s", errorStr)
+		} else {
+			utils.ErrMalformedRequest(w, errorStr)
+			return nil, nil
+		}
+	}
+
+	// return data; priceGwei is redundant but left up to the user if the user wants to input a different escrow payout in the paymaster and data
+	// type MessageOpEvm struct {
+	// 	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
+	// 	PaymasterAndData PaymasterAndData            `json:"op-paymaster"`
+	// 	UserOpHash       string                      `json:"op-hash"`
+	// 	PriceGwei        string                      `json:"op-price"`
+	// }
 
 	return nil, nil
 }
