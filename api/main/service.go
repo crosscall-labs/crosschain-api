@@ -32,16 +32,52 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.PrintStructFields(params)
 	// payload, err := utils.Str2Bytes(params.Payload)
 	// if err != nil {
 	// 	utils.ErrMalformedRequest(w, err.Error())
 	// }
 	// fmt.Print(payload)
 
-	// use id to set
+	// finish validating input parameters
+	// func checkChainType(chainId string) (string, string, []int, []int, error) { // out: vm, name, entrypointType, escrowType, error
+	var errorStr string
+	var escrowTypes []int
+	var entrypointTypes []int
+	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, _, escrowTypes, errorStr = checkChainType(params.Header.FromChainId)
+	if errorStr != "" {
+		utils.ErrMalformedRequest(w, errorStr)
+		return
+	}
+	txTypeInt, err := strconv.Atoi(params.Header.TxType)
+	if err != nil {
+		utils.ErrMalformedRequest(w, "invalid txtype")
+	}
+	if err := utils.HasInt(escrowTypes, txTypeInt); err != nil {
+		utils.ErrInternal(w, fmt.Sprintf("Chain %s missing type %s for Escrow", params.Header.FromChainId, params.Header.TxType))
+	}
+	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, entrypointTypes, _, errorStr = checkChainType(params.Header.ToChainId)
+	if errorStr != "" {
+		utils.ErrMalformedRequest(w, errorStr)
+		return
+	}
+	if err != nil {
+		utils.ErrMalformedRequest(w, "invalid txtype")
+	}
+	if err := utils.HasInt(entrypointTypes, txTypeInt); err != nil {
+		utils.ErrInternal(w, fmt.Sprintf("Chain %s missing type %s for EntryPoint", params.Header.FromChainId, params.Header.TxType))
+	}
 
+	utils.PrintStructFields(params)
+	// call the proper vm function to externally return vm unsigned data
+	// UnsignedRequestEvm(w, r, params, "escrow")
+
+	// if err := json.NewEncoder(w).Encode(unsignedDataResponse); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 }
+
+func UnsignedRequestEvm()
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
@@ -1314,61 +1350,52 @@ func GetLatestBlock(client ethclient.Client) (*Block, error) {
 // case "0x63630000", "1667432448": // tvm workchain_id == 0
 // case "0x53564D0001", "357930172419": // solana mainnet
 // case "0xBF04", "48900": // zircuit mainnet
-func checkChainType(chainId string) (string, []int, []int, error) { // out: vm, entrypointType, escrowTyoe, error
-	disabled := fmt.Errorf("unsupported chain ID: %s", chainId)
+func checkChainType(chainId string) (string, string, string, []int, []int, string) { // out: id, vm, name, entrypointType, escrowType, error
+	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
 	switch chainId {
 	case "0x3106A", "200810": // bitlayer testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
+		return "200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, ""
 	case "0x4268", "17000": // holesky
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
+		return "17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, ""
 	case "0xAA36A7", "11155111": // sepolia
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
+		return "11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, ""
 	case "0xE34", "3636": // botanix testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, disabled
+		return "3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled
 	case "0xF35A", "62298": // citrea testnet
-		return "evm", []int{0, 1}, []int{0, 1, 2}, nil
+		return "62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, ""
 	case "0x13881", "80001": // matic mumbai
-		return "evm", nil, nil, disabled
+		return "80001", "evm", "maticMumbai", nil, nil, disabled
 	case "0x13882", "80002": // matic amoy
-		return "evm", nil, nil, disabled
+		return "80002", "evm", "maticAmoy", nil, nil, disabled
 	case "0xC3", "195": // x layer testnet
-		return "evm", nil, nil, disabled
+		return "195", "evm", "xLayerEvmTestnet", nil, nil, disabled
 	case "0xAEF3", "44787": // celo alfajores
-		return "evm", nil, nil, disabled
+		return "44787", "evm", "celoAlforesTestnet", nil, nil, disabled
 	case "0x5E9", "1513": // story testnet
-		return "evm", nil, nil, disabled
+		return "1513", "evm", "storyEvmTestnet", nil, nil, disabled
 	case "0x8274F", "534351": // scroll testnet
-		return "evm", nil, nil, disabled
+		return "534351", "evm", "scrollEvmTestnet", nil, nil, disabled
 	case "0xAA37DC", "11155420": // op sepolia
-		return "evm", nil, nil, disabled
+		return "11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled
 	case "0x66EEE", "421614": // arbitrum sepolia
-		return "evm", nil, nil, disabled
+		return "421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled
 	case "0x14A34", "84532": // base sepolia
-		return "evm", nil, nil, disabled
+		return "84532", "evm", "baseSepoliaTestnet", nil, nil, disabled
 	case "0x4CB2F", "314159": // filecoin calibration
-		return "evm", nil, nil, disabled
+		return "314159", "evm", "filecoinEvmTestnet", nil, nil, disabled
 	case "0xBF03", "48899": // zircuit testnet
-		return "evm", nil, nil, disabled
+		return "48899", "evm", "zircuitTestnet", nil, nil, disabled
 	case "0x63639999", "1667471769": // tvm workchain_id == -1 ton testnet
-		return "evm", []int{2}, []int{0, 1, 2}, nil
+		return "1667471769", "evm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, ""
 	case "0x53564D0002", "357930172418": // solana devnet
-		return "svm", nil, nil, disabled
+		return "357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled
 	case "0x53564D0003", "357930172419": // solana testnet
-		return "svm", nil, nil, disabled
+		return "357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled
 	case "0x53564D0004", "357930172420": // eclipse (solana) testnet
-		return "svm", nil, nil, disabled
+		return "357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled
 	default:
-		return "NaN", nil, nil, disabled
+		return "", "", "", nil, nil, disabled
 	}
-}
-
-func hasInt(inputArray []int, input int) error {
-	for value := range inputArray {
-		if value == input {
-			return nil
-		}
-	}
-	return fmt.Errorf("int not found in input array")
 }
 
 //unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit := createEscrowBytecode(signer, originId, assetAddress, assetAmount)
