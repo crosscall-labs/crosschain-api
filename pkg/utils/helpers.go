@@ -200,7 +200,7 @@ func EnableCORS(next http.Handler) http.Handler {
 }
 
 func CheckChainPartialType(chainId, partialType, txType string) (string, string, string, string) {
-	chainIdOut, chainType, chainName, escrowTypes, entrypointTypes, errorStr := CheckChainType(chainId)
+	chainIdOut, chainType, chainName, entrypointTypes, escrowTypes, errorStr := CheckChainType(chainId)
 	if errorStr != "" {
 		return "", "", "", errorStr
 	}
@@ -237,7 +237,7 @@ func CheckChainPartialType(chainId, partialType, txType string) (string, string,
 // case "0x63630000", "1667432448": // tvm workchain_id == 0
 // case "0x53564D0001", "357930172419": // solana mainnet
 // case "0xBF04", "48900": // zircuit mainnet
-func CheckChainType(chainId string) (string, string, string, []int, []int, string) { // out: id, vm, name, entrypointType, escrowType, error
+func CheckChainType(chainId string) (string, string, string, []int, []int, string) { // out: id, vm, name, escrowType, entrypointType, error
 	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
 	switch chainId {
 	case "0x3106A", "200810": // bitlayer testnet

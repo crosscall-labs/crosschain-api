@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	evmHandler "github.com/laminafinance/crosschain-api/api/evm"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"golang.org/x/crypto/sha3"
 )
@@ -53,6 +54,28 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.PrintStructFields(params)
+
+	switch params.Header.FromChainType {
+	case "evm":
+
+		response, err := evmHandler.UnsignedEscrowRequest(nil, nil, &evmHandler.UnsignedEscrowRequestParams{
+			Header: utils.PartialHeader{
+				TxType:      params.Header.TxType,
+				ChainName:   params.Header.FromChainName,
+				ChainType:   params.Header.FromChainType,
+				ChainId:     params.Header.FromChainId,
+				ChainSigner: params.Header.FromChainSigner,
+			},
+		})
+		if err != nil {
+			utils.ErrInternal(w, err.Error())
+		}
+		utils.PrintStructFields(response)
+	case "tvm":
+	case "svm":
+	default:
+		utils.ErrInternal(w, fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
+	}
 	// call the proper vm function to externally return vm unsigned data
 	// UnsignedRequestEvm(w, r, params, "escrow")
 
@@ -61,8 +84,6 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 }
-
-//func UnsignedRequestEvm()
 
 func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
