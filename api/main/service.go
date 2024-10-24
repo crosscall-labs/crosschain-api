@@ -32,28 +32,14 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// params.Header.FromChainId
-	// params.Header.FromChainSigner
-	// params.Header.ToChainId
-	// params.Header.ToChainSigner
+	utils.PrintStructFields(params)
+	// payload, err := utils.Str2Bytes(params.Payload)
+	// if err != nil {
+	// 	utils.ErrMalformedRequest(w, err.Error())
+	// }
+	// fmt.Print(payload)
 
-	// used later on especially for evm
-	fmt.Printf("\nparams.TxType: %v", params.Header.TxType)
-	fmt.Printf("\nparams.Header.FromChainId: %v", params.Header.FromChainId)
-	fmt.Printf("\nparams.Header.FromChainName: %v", params.Header.FromChainName)
-	fmt.Printf("\nparams.Header.FromChainSigner: %v", params.Header.FromChainSigner)
-	fmt.Printf("\nparams.Header.FromChainType: %v", params.Header.FromChainType)
-	fmt.Printf("\nparams.Header.ToChainId: %v", params.Header.ToChainId)
-	fmt.Printf("\nparams.Header.ToChainName: %v", params.Header.ToChainName)
-	fmt.Printf("\nparams.Header.ToChainSigner: %v", params.Header.ToChainSigner)
-	fmt.Printf("\nparams.Header.ToChainType: %v", params.Header.ToChainType)
-	fmt.Printf("\nparams.Header.FromChainId: %v", params.Header.FromChainId)
-	fmt.Printf("\nparams.payload: %v", params.Payload)
-	payload, err := utils.Str2Bytes(params.Payload)
-	if err != nil {
-		utils.ErrMalformedRequest(w, err.Error())
-	}
-	fmt.Print(payload)
+	// use id to set
 
 }
 

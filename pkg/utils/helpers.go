@@ -63,7 +63,6 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 				}
 			}
 		}
-
 	}
 
 	// If there are missing fields, return an error response
@@ -73,6 +72,35 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 	}
 
 	return true
+}
+
+func PrintStructFields(params interface{}) {
+	val := reflect.ValueOf(params)
+
+	// Ensure the value is a struct
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		fmt.Println("Expected a struct")
+		return
+	}
+
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+		fieldName := fieldType.Name
+
+		// Check if it's a nested struct
+		if field.Kind() == reflect.Struct {
+			fmt.Printf("\n%s:\n", fieldName)
+			PrintStructFields(field.Interface()) // Recursively print nested struct fields
+		} else {
+			fmt.Printf("\n%s: %v", fieldName, field.Interface()) // Print field value
+		}
+	}
 }
 
 func (e Error) Error() string {
