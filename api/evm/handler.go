@@ -51,6 +51,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		case "unsigned-escrow-request":
 			UnsignedEscrowRequest(w, r)
 			return
+		case "unsigned-entrypoint-request":
+			UnsignedEntryPointRequest(w, r)
+			return
 		case "test":
 			var hellowWorld HelloWorld
 			hellowWorld.Test = "Hello, World!"

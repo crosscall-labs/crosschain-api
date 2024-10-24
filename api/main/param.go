@@ -61,29 +61,30 @@ type UnsignedDataResponse struct {
 	ToMessage   MessageResponse     `json:"to"`
 }
 
-type MessageEscrowEvm struct {
-	Escrow          string `json:"eaddress"`
-	EscrowInit      string `json:"einit"`
-	EscrowPayload   string `json:"epayload"`
-	EscrowAsset     string `json:"easset"`
-	EscrowAmount    string `json:"eamount"`
-	EscrowValueType string `json:"evaluetype"`
-	EscrowValue     string `json:"evalue"`
-}
+// type MessageEscrowEvm struct {
+// 	EscrowAddress   string `json:"eaddress"`
+// 	EscrowInit      string `json:"einit"`
+// 	EscrowPayload   string `json:"epayload"`
+// 	EscrowAsset     string `json:"easset"`
+// 	EscrowAmount    string `json:"eamount"`
+// 	EscrowValueType string `json:"evaluetype"`
+// 	EscrowValue     string `json:"evalue"`
+// }
 
-func (m MessageEscrowEvm) GetType() string {
-	return "EVM Escrow"
-}
+// func (m MessageEscrowEvm) GetType() string {
+// 	return "EVM Escrow"
+// }
 
-type MessageOpEvm struct {
-	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndData            `json:"op-paymaster"`
-	UserOpHash       string                      `json:"op-hash"`
-}
+// type MessageOpEvm struct {
+// 	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
+// 	PaymasterAndData PaymasterAndData            `json:"op-paymaster"`
+// 	UserOpHash       string                      `json:"op-hash"`
+// 	PriceGwei        string                      `json:"op-price"`
+// }
 
-func (m MessageOpEvm) GetType() string {
-	return "EVM UserOp"
-}
+// func (m MessageOpEvm) GetType() string {
+// 	return "EVM UserOp"
+// }
 
 /**
 if i sign the full tx the data for the escrow is signed but it means that on every preceeding chain we need to validate all the data

@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
 type Chain struct {
@@ -139,7 +140,7 @@ type PaymasterAndData struct {
 // }
 
 type UnsignedDataResponse2 struct {
-	Signer           string                      `json:"signer"`
+	Header           utils.MessageHeader         `json:"header"` // first  ttoChain (entrypoint) then fromChain (escrow)
 	ScwInit          bool                        `json:"swc-init"`
 	Escrow           string                      `json:"escrow"`
 	EscrowInit       string                      `json:"escrow-init"`
