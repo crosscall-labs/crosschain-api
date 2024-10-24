@@ -1,8 +1,10 @@
 package handler
 
+import "github.com/laminafinance/crosschain-api/pkg/utils"
+
 type UnsignedRequestParams struct {
-	Header  MessageHeader `query:"header"`
-	Payload string        `query:"payload" optional:"true"`
+	Header  utils.MessageHeader `query:"header"`
+	Payload string              `query:"payload" optional:"true"`
 }
 
 type UnsignedBytecodeParams struct {
@@ -47,29 +49,6 @@ type UnsignedBytecodeResponse struct {
 	Calldata     string `query:"calldata" optional:"true"`
 }
 
-// type UnsignedDataResponse struct {
-// 	Signer        string                      `json:"signer"`
-// 	ScwInit       bool                        `json:"swc-init"`
-// 	EscrowInit    bool                        `json:"escrow-init"`
-// 	EscrowPayload string                      `json:"escrow-payload"`
-// 	EscrowTarget  string                      `json:"escrow-target"`
-// 	EscrowValue   string                      `json:"escrow-value"`  // need to implement
-// 	UserOp        PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-// 	UserOpHash    string                      `json:"userop-hash"`
-// }
-
-type MessageHeader struct {
-	TxType          string `query:"txtype"`                // for now just type1 tx and type0 (legacy)
-	FromChainName   string `query:"fname" optional:"true"` // add later for QoL
-	FromChainType   string `query:"ftype" optional:"true"` // add later for QoL
-	FromChainId     string `query:"fid"`
-	FromChainSigner string `query:"fsigner"`
-	ToChainName     string `query:"tname" optional:"true"` // add later for QoL
-	ToChainType     string `query:"ttype" optional:"true"` // add later for QoL
-	ToChainId       string `query:"tid"`
-	ToChainSigner   string `query:"tsigner"`
-}
-
 type MessageResponse interface {
 	GetType() string
 }
@@ -77,9 +56,9 @@ type MessageResponse interface {
 // need to cover tvm<>evm evm<>evm
 // we will change this to be able to make anj on the fly suggestion and let the user edit the message values
 type UnsignedDataResponse struct {
-	Header      MessageHeader   `json:"header"`
-	FromMessage MessageResponse `json:"from"`
-	ToMessage   MessageResponse `json:"to"`
+	Header      utils.MessageHeader `json:"header"`
+	FromMessage MessageResponse     `json:"from"`
+	ToMessage   MessageResponse     `json:"to"`
 }
 
 type MessageEscrowEvm struct {
@@ -118,5 +97,5 @@ we can do this since we are determinstic, this design choice was to make svm/tvm
 empty call
 http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=&fsigner=&tid&tid=&tsigner=
 
-http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=11155111&fsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&tid=1667471769&tsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&payload=
+http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=11155111&fsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&tid=1667471769&tsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&payload=00
 */

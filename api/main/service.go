@@ -41,30 +41,15 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	// finish validating input parameters
 	// func checkChainType(chainId string) (string, string, []int, []int, error) { // out: vm, name, entrypointType, escrowType, error
 	var errorStr string
-	var escrowTypes []int
-	var entrypointTypes []int
-	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, _, escrowTypes, errorStr = checkChainType(params.Header.FromChainId)
+	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
 		utils.ErrMalformedRequest(w, errorStr)
 		return
 	}
-	txTypeInt, err := strconv.Atoi(params.Header.TxType)
-	if err != nil {
-		utils.ErrMalformedRequest(w, "invalid txtype")
-	}
-	if err := utils.HasInt(escrowTypes, txTypeInt); err != nil {
-		utils.ErrInternal(w, fmt.Sprintf("Chain %s missing type %s for Escrow", params.Header.FromChainId, params.Header.TxType))
-	}
-	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, entrypointTypes, _, errorStr = checkChainType(params.Header.ToChainId)
+	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
 		utils.ErrMalformedRequest(w, errorStr)
 		return
-	}
-	if err != nil {
-		utils.ErrMalformedRequest(w, "invalid txtype")
-	}
-	if err := utils.HasInt(entrypointTypes, txTypeInt); err != nil {
-		utils.ErrInternal(w, fmt.Sprintf("Chain %s missing type %s for EntryPoint", params.Header.FromChainId, params.Header.TxType))
 	}
 
 	utils.PrintStructFields(params)
@@ -1336,66 +1321,6 @@ func GetLatestBlock(client ethclient.Client) (*Block, error) {
 	}
 
 	return _block, nil
-}
-
-// case "0x310C5", "200901": // bitlayer mainnet
-// case "0xE35", "3637": // botanix mainnet
-// case "0xC4", "196": // x layer mainnet
-// case "0xA4EC", "42220": // celo mainnet
-// case "0x82750", "534352": // scroll mainnet
-// case "0xA", "10": // op mainnet
-// case "0xA4B1", "42161": // arbitrum one
-// case "0x2105", "8453": // base mainnet
-// case "0x13A", "314": // filecoin mainnet
-// case "0x63630000", "1667432448": // tvm workchain_id == 0
-// case "0x53564D0001", "357930172419": // solana mainnet
-// case "0xBF04", "48900": // zircuit mainnet
-func checkChainType(chainId string) (string, string, string, []int, []int, string) { // out: id, vm, name, entrypointType, escrowType, error
-	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
-	switch chainId {
-	case "0x3106A", "200810": // bitlayer testnet
-		return "200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, ""
-	case "0x4268", "17000": // holesky
-		return "17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, ""
-	case "0xAA36A7", "11155111": // sepolia
-		return "11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, ""
-	case "0xE34", "3636": // botanix testnet
-		return "3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled
-	case "0xF35A", "62298": // citrea testnet
-		return "62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, ""
-	case "0x13881", "80001": // matic mumbai
-		return "80001", "evm", "maticMumbai", nil, nil, disabled
-	case "0x13882", "80002": // matic amoy
-		return "80002", "evm", "maticAmoy", nil, nil, disabled
-	case "0xC3", "195": // x layer testnet
-		return "195", "evm", "xLayerEvmTestnet", nil, nil, disabled
-	case "0xAEF3", "44787": // celo alfajores
-		return "44787", "evm", "celoAlforesTestnet", nil, nil, disabled
-	case "0x5E9", "1513": // story testnet
-		return "1513", "evm", "storyEvmTestnet", nil, nil, disabled
-	case "0x8274F", "534351": // scroll testnet
-		return "534351", "evm", "scrollEvmTestnet", nil, nil, disabled
-	case "0xAA37DC", "11155420": // op sepolia
-		return "11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled
-	case "0x66EEE", "421614": // arbitrum sepolia
-		return "421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled
-	case "0x14A34", "84532": // base sepolia
-		return "84532", "evm", "baseSepoliaTestnet", nil, nil, disabled
-	case "0x4CB2F", "314159": // filecoin calibration
-		return "314159", "evm", "filecoinEvmTestnet", nil, nil, disabled
-	case "0xBF03", "48899": // zircuit testnet
-		return "48899", "evm", "zircuitTestnet", nil, nil, disabled
-	case "0x63639999", "1667471769": // tvm workchain_id == -1 ton testnet
-		return "1667471769", "evm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, ""
-	case "0x53564D0002", "357930172418": // solana devnet
-		return "357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled
-	case "0x53564D0003", "357930172419": // solana testnet
-		return "357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled
-	case "0x53564D0004", "357930172420": // eclipse (solana) testnet
-		return "357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled
-	default:
-		return "", "", "", nil, nil, disabled
-	}
 }
 
 //unsignedDataResponse.Escrow, unsignedDataResponse.EscrowInit := createEscrowBytecode(signer, originId, assetAddress, assetAmount)

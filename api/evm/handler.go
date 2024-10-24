@@ -49,7 +49,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 		switch query.Get("query") {
 		case "unsigned-escrow-request":
-			UnsignedRequest(w, r)
+			UnsignedEscrowRequest(w, r)
 			return
 		case "test":
 			var hellowWorld HelloWorld
