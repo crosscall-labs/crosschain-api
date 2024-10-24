@@ -7,6 +7,6 @@ type UnsignedEscrowRequestParams struct {
 }
 
 type UnsignedEntryPointRequestParams struct {
-	Header  utils.PartialHeader `query:"header"`
+	Header  utils.MessageHeader `query:"header"`
 	Payload string              `query:"payload" optional:"true"`
 }
