@@ -2,7 +2,7 @@ package handler
 
 type UnsignedRequestParams struct {
 	Header  MessageHeader `query:"header"`
-	payload string        `query:"payload" optional:"true"`
+	Payload string        `query:"payload" optional:"true"`
 }
 
 type UnsignedBytecodeParams struct {
@@ -59,13 +59,13 @@ type UnsignedBytecodeResponse struct {
 // }
 
 type MessageHeader struct {
-	TxType          string `query:"txtype"` // for now just type1 tx and type0 (legacy)
-	FromChainName   string `query:"fname"`
-	FromChainType   string `query:"ftype"`
+	TxType          string `query:"txtype"`                // for now just type1 tx and type0 (legacy)
+	FromChainName   string `query:"fname" optional:"true"` // add later for QoL
+	FromChainType   string `query:"ftype" optional:"true"` // add later for QoL
 	FromChainId     string `query:"fid"`
 	FromChainSigner string `query:"fsigner"`
-	ToChainName     string `query:"tname"`
-	ToChainType     string `query:"ttype"`
+	ToChainName     string `query:"tname" optional:"true"` // add later for QoL
+	ToChainType     string `query:"ttype" optional:"true"` // add later for QoL
 	ToChainId       string `query:"tid"`
 	ToChainSigner   string `query:"tsigner"`
 }
@@ -106,18 +106,6 @@ func (m MessageOpEvm) GetType() string {
 	return "EVM UserOp"
 }
 
-// Signer           string                      `json:"signer"`
-// ScwInit          bool                        `json:"swc-init" optional:"true"`
-// Escrow           string                      `json:"escrow"`
-// EscrowInit       string                      `json:"escrow-init"`
-// EscrowPayload    string                      `json:"escrow-payload"`
-// EscrowAsset      string                      `json:"escrow-asset"`
-// EscrowValue      string                      `json:"escrow-value"`  // need to implement
-
-// UserOp           PackedUserOperationResponse `json:"packed-userop"` // parsed data, recommended to validate data
-// PaymasterAndData PaymasterAndData            `json:"paymaster-and-data"`
-// UserOpHash       string                      `json:"userop-hash"`
-
 /**
 if i sign the full tx the data for the escrow is signed but it means that on every preceeding chain we need to validate all the data
 ergo we have type0 and type1 transaction
@@ -126,4 +114,9 @@ type0 is signed once but all the bytecode needs to be validated onchain to make 
 
 type1 is signed twice where the overall signed code is trusted on the escrow chain and the escrow payload is proved onchain instead
 we can do this since we are determinstic, this design choice was to make svm/tvm integration easier in the shortterm
+
+empty call
+http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=&fsigner=&tid&tid=&tsigner=
+
+http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=11155111&fsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&tid=1667471769&tsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&payload=
 */

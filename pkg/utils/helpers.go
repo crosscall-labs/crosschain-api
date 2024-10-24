@@ -2,11 +2,13 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,32 +29,41 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 	typ := val.Type()
 
 	missingFields := []string{}
+	allowedFields := make(map[string]struct{})
 
-	// Iterate through the fields in the struct
+	fmt.Printf("\nfieldType.Type: %v", typ)
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 		queryTag := fieldType.Tag.Get("query")
 		optionalTag := fieldType.Tag.Get("optional")
 
-		if field.Kind() == reflect.Struct {
-			// Recursively parse nested struct fields
-			nestedParams := reflect.New(fieldType.Type).Interface()
-			if !ParseAndValidateParams(w, r, nestedParams) {
-				return false // If the nested struct has missing fields, return false
-			}
-			// After recursion, set the original struct's field value
-			field.Set(reflect.ValueOf(nestedParams).Elem())
-		} else if queryTag != "" {
-			queryValue := r.URL.Query().Get(queryTag)
+		if queryTag != "" {
+			allowedFields[queryTag] = struct{}{}
+		}
 
-			// If the field is required (i.e., optional is not set to "true")
-			if queryValue == "" && optionalTag != "true" {
-				missingFields = append(missingFields, queryTag)
-			} else if queryValue != "" {
-				field.SetString(queryValue)
+		// fmt.Printf("\nfieldType.Name: %v", fieldType.Name)
+		if _, exists := typ.FieldByName(fieldType.Name); exists {
+			if field.Kind() == reflect.Struct {
+				// Recursively parse nested struct fields
+				nestedParams := reflect.New(fieldType.Type).Interface()
+				if !ParseAndValidateParams(w, r, nestedParams) {
+					return false
+				}
+				// After recursion, set the original struct's field value
+				field.Set(reflect.ValueOf(nestedParams).Elem())
+			} else if queryTag != "" {
+				queryValue := r.URL.Query().Get(queryTag)
+
+				// If the field is required (i.e., optional is not set to "true")
+				if queryValue == "" && optionalTag != "true" {
+					missingFields = append(missingFields, queryTag)
+				} else if queryValue != "" {
+					field.SetString(queryValue)
+				}
 			}
 		}
+
 	}
 
 	// If there are missing fields, return an error response
@@ -107,4 +118,27 @@ func PrivateKey2Sepc256k1(privateKeyString string) (privateKey *ecdsa.PrivateKey
 
 	publicAddress = crypto.PubkeyToAddress(*publicKeyECDSA)
 	return
+}
+
+func Str2Bytes(hexStr string) ([]byte, error) {
+	if hexStr == "" {
+		return []byte{}, nil // Return empty byte slice for empty input
+	}
+
+	if len(hexStr)%2 != 0 {
+		return nil, fmt.Errorf("invalid payload: length odd")
+	}
+
+	for _, r := range hexStr {
+		if _, err := strconv.ParseUint(string(r), 16, 8); err != nil {
+			return nil, fmt.Errorf("invalid payload: hex only 0123456789abcdefABCDEF")
+		}
+	}
+
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
