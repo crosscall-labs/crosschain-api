@@ -55,9 +55,24 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 
 	utils.PrintStructFields(params)
 
+	switch params.Header.ToChainType {
+	case "evm":
+		response, err := evmHandler.UnsignedEntryPointRequest(nil, nil, &evmHandler.UnsignedEntryPointRequestParams{
+			Header:  params.Header,
+			Payload: params.Payload,
+		})
+		if err != nil {
+			utils.ErrInternal(w, err.Error())
+		}
+		utils.PrintStructFields(response)
+	case "tvm":
+	case "svm":
+	default:
+		utils.ErrInternal(w, fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
+	}
+
 	switch params.Header.FromChainType {
 	case "evm":
-
 		response, err := evmHandler.UnsignedEscrowRequest(nil, nil, &evmHandler.UnsignedEscrowRequestParams{
 			Header: utils.PartialHeader{
 				TxType:      params.Header.TxType,
