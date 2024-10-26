@@ -1,4 +1,4 @@
-package evmHandler
+package tvmHandler
 
 import (
 	"encoding/json"
@@ -15,10 +15,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 		switch query.Get("query") {
-		case "unsigned-escrow-request":
-			response, err = UnsignedEscrowRequest(r)
-		case "unsigned-entrypoint-request":
-			response, err = UnsignedEntryPointRequest(r)
+		// case "unsigned-escrow-request":
+		// 	response, err = UnsignedEscrowRequest(r)
+		// case "unsigned-entrypoint-request":
+		// 	response, err = UnsignedEntryPointRequest(r)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))

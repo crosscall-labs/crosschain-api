@@ -3,12 +3,14 @@
     { "src": "api/main/handler.go", "use": "@vercel/go" },
     { "src": "api/evm/handler.go", "use": "@vercel/go" },
     { "src": "api/svm/handler.go", "use": "@vercel/go" },
+    { "src": "api/tvm/handler.go", "use": "@vercel/go" },
     { "src": "api/info/handler.go", "use": "@vercel/go" }
   ],
   "routes": [
     { "src": "/api/main", "dest": "api/main/handler.go" },
     { "src": "/api/evm", "dest": "api/evm/handler.go" },
     { "src": "/api/svm", "dest": "api/svm/handler.go" },
+    { "src": "/api/tvm", "dest": "api/tvm/handler.go" },
     { "src": "/api/info", "dest": "api/info/handler.go" }
   ]
 }
