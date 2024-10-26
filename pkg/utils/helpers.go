@@ -273,7 +273,7 @@ func CheckChainType(chainId string) (string, string, string, []int, []int, strin
 	case "0xBF03", "48899": // zircuit testnet
 		return "48899", "evm", "zircuitTestnet", nil, nil, disabled
 	case "0x63639999", "1667471769": // tvm workchain_id == -1 ton testnet
-		return "1667471769", "evm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, ""
+		return "1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, ""
 	case "0x53564D0002", "357930172418": // solana devnet
 		return "357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled
 	case "0x53564D0003", "357930172419": // solana testnet

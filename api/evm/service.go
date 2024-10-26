@@ -113,6 +113,10 @@ func UnsignedEntryPointRequest(w http.ResponseWriter, r *http.Request, parameter
 	//	combine the transaction gas and cost for execution then multiply by 0.1%, this should be our crosschain fee + bid fee
 	// 		add this value to the paymaster and data AND PriceGwei
 
+	packedUserOperation := GenerateTestPackedUserOperation()
+	packedUserOperationResponse, _ := ToPackedUserOperationResponse(packedUserOperation)
+	utils.PrintStructFields(packedUserOperationResponse)
+
 	return nil, nil
 }
 
