@@ -54,13 +54,25 @@ type PackedUserOperationResponse struct {
 }
 
 type PaymasterAndData struct {
-	Paymaster     string `json:"paymaster"`
-	Signer        string `json:"signer"`
-	EscrowAddress string `json:"escrow-address"`
-	TargetDomain  string `json:"target-domain"`
-	AssetAddress  string `json:"asset-address"`
-	AssetAmount   string `json:"asset-amount"`
-	Calldata      string `json:"calldata"`
+	Paymaster                     common.Address
+	PaymasterVerificationGasLimit [32]byte
+	PaymasterPostOpGasLimit       [32]byte
+	Signer                        common.Address
+	DestinationDomain             [4]byte
+	MessageType                   byte
+	AssetAddress                  common.Address
+	AssetAmount                   *big.Int
+}
+
+type PaymasterAndDataResponse struct {
+	Paymaster                     string `json:"pad-paymaster"`
+	PaymasterVerificationGasLimit string `json:"pad-verification-gas-limit"`
+	PaymasterPostOpGasLimit       string `json:"pad-post-op-gas-limit"`
+	Signer                        string `json:"pad-signer"`
+	DestinationDomain             string `json:"pad-destination-domain"`
+	MessageType                   string `json:"pad-message-type"`
+	AssetAddress                  string `json:"pad-asset-address"`
+	AssetAmount                   string `json:"pad-asset-amount"`
 }
 
 func (m MessageEscrowEvm) GetType() string {
