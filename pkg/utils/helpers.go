@@ -284,3 +284,27 @@ func CheckChainType(chainId string) (string, string, string, []int, []int, strin
 		return "", "", "", nil, nil, disabled
 	}
 }
+
+// Helper function to convert []byte to hex string prefixed with "0x".
+func ToHexBytes(data []byte) string {
+	if len(data) == 0 {
+		return "0x"
+	}
+	return "0x" + hex.EncodeToString(data)
+}
+
+// Helper function to convert common.Address to hex string prefixed with "0x".
+func ToHexAddress(addr common.Address) string {
+	return "0x" + hex.EncodeToString(addr[:])
+}
+
+// Helper function to convert [4]byte to a uint32 string.
+func Uint32ToString(data [4]byte) string {
+	value := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+	return fmt.Sprintf("%d", value)
+}
+
+// Helper function to convert a byte to string.
+func Uint8ToString(data byte) string {
+	return fmt.Sprintf("%d", data)
+}
