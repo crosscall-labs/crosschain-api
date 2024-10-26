@@ -24,7 +24,7 @@ func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
 	}
 }
 
-func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params interface{}) bool {
+func ParseAndValidateParams(r *http.Request, params interface{}) error {
 	val := reflect.ValueOf(params).Elem() // Dereference the pointer to access the underlying struct
 	typ := val.Type()
 
@@ -47,8 +47,8 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 			if field.Kind() == reflect.Struct {
 				// Recursively parse nested struct fields
 				nestedParams := reflect.New(fieldType.Type).Interface()
-				if !ParseAndValidateParams(w, r, nestedParams) {
-					return false
+				if err := ParseAndValidateParams(r, nestedParams); err != nil {
+					return err
 				}
 				// After recursion, set the original struct's field value
 				field.Set(reflect.ValueOf(nestedParams).Elem())
@@ -67,11 +67,10 @@ func ParseAndValidateParams(w http.ResponseWriter, r *http.Request, params inter
 
 	// If there are missing fields, return an error response
 	if len(missingFields) > 0 {
-		http.Error(w, "Missing fields: "+strings.Join(missingFields, ", "), http.StatusBadRequest)
-		return false
+		return ErrMalformedRequest(fmt.Sprint("Missing fields: " + strings.Join(missingFields, ", ")))
 	}
 
-	return true
+	return nil
 }
 
 func PrintStructFields(params interface{}) {
@@ -97,6 +96,7 @@ func PrintStructFields(params interface{}) {
 		if field.Kind() == reflect.Struct {
 			fmt.Printf("\n%s:\n", fieldName)
 			PrintStructFields(field.Interface()) // Recursively print nested struct fields
+			fmt.Println()
 		} else {
 			fmt.Printf("\n%s: %v", fieldName, field.Interface()) // Print field value
 		}
@@ -107,23 +107,31 @@ func (e Error) Error() string {
 	return fmt.Sprintf("Error (Code: %d, Message: %s)", e.Code, e.Message)
 }
 
-func ErrMalformedRequest(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
+// func ErrMalformedRequest(w http.ResponseWriter, message string) {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusBadRequest)
 
-	json.NewEncoder(w).Encode(&Error{
+// 	json.NewEncoder(w).Encode(&Error{
+// 		Code:    400,
+// 		Message: "Malformed request",
+// 		Details: message,
+// 	})
+// }
+
+func ErrMalformedRequest(message string) error {
+	return Error{
 		Code:    400,
 		Message: "Malformed request",
 		Details: message,
-	})
+	}
 }
 
-func ErrInternal(w http.ResponseWriter, message string) {
-	json.NewEncoder(w).Encode(&Error{
+func ErrInternal(message string) error {
+	return Error{
 		Code:    500,
 		Message: "Internal server error",
 		Details: message,
-	})
+	}
 }
 
 func EnvKey2Ecdsa() (*ecdsa.PrivateKey, common.Address, error) {

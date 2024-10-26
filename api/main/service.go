@@ -26,16 +26,16 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
+func UnsignedRequest(r *http.Request) (interface{}, error) {
 	params := &UnsignedRequestParams{}
 
-	if !utils.ParseAndValidateParams(w, r, params) {
-		return
+	if err := utils.ParseAndValidateParams(r, params); err != nil {
+		return nil, err
 	}
 
 	// payload, err := utils.Str2Bytes(params.Payload)
 	// if err != nil {
-	// 	utils.ErrMalformedRequest(w, err.Error())
+	// 	return nil, err
 	// }
 	// fmt.Print(payload)
 
@@ -44,36 +44,40 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 	var errorStr string
 	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
-		utils.ErrMalformedRequest(w, errorStr)
-		return
+		return nil, utils.ErrMalformedRequest(errorStr)
 	}
 	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
-		utils.ErrMalformedRequest(w, errorStr)
-		return
+		return nil, utils.ErrMalformedRequest(errorStr)
 	}
 
-	utils.PrintStructFields(params)
+	//utils.PrintStructFields(params)
 
+	unsignedDataResponse := &UnsignedDataResponse{}
+	unsignedDataResponse.Header = params.Header
+	// var toResponse interface{}
+	// var fromResponse interface{}
+	// var err error
 	switch params.Header.ToChainType {
 	case "evm":
-		response, err := evmHandler.UnsignedEntryPointRequest(nil, nil, &evmHandler.UnsignedEntryPointRequestParams{
+		response, err := evmHandler.UnsignedEntryPointRequest(nil, &evmHandler.UnsignedEntryPointRequestParams{
 			Header:  params.Header,
 			Payload: params.Payload,
 		})
 		if err != nil {
-			utils.ErrInternal(w, err.Error())
+			return nil, utils.ErrInternal(err.Error())
 		}
-		utils.PrintStructFields(response)
+		unsignedDataResponse.ToMessage = response.(MessageResponse)
+		// utils.PrintStructFields(response)
 	case "tvm":
 	case "svm":
 	default:
-		utils.ErrInternal(w, fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
+		return nil, utils.ErrInternal(fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
 	}
 
 	switch params.Header.FromChainType {
 	case "evm":
-		response, err := evmHandler.UnsignedEscrowRequest(nil, nil, &evmHandler.UnsignedEscrowRequestParams{
+		response, err := evmHandler.UnsignedEscrowRequest(nil, &evmHandler.UnsignedEscrowRequestParams{
 			Header: utils.PartialHeader{
 				TxType:      params.Header.TxType,
 				ChainName:   params.Header.FromChainName,
@@ -83,35 +87,29 @@ func UnsignedRequest(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
-			utils.ErrInternal(w, err.Error())
+			return nil, utils.ErrInternal(err.Error())
 		}
-		utils.PrintStructFields(response)
+		unsignedDataResponse.FromMessage = response.(MessageResponse)
+		// utils.PrintStructFields(response)
 	case "tvm":
 	case "svm":
 	default:
-		utils.ErrInternal(w, fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
+		return nil, utils.ErrInternal(fmt.Sprintf("%s type chains are not yet supported", params.Header.FromChainType))
 	}
-	// call the proper vm function to externally return vm unsigned data
-	// UnsignedRequestEvm(w, r, params, "escrow")
 
-	// if err := json.NewEncoder(w).Encode(unsignedDataResponse); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	return unsignedDataResponse, nil
 }
 
-func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
+func UnsignedBytecode(r *http.Request) (interface{}, error) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
 	fmt.Print(privateKey, relayAddress)
 	if err != nil {
-		utils.ErrInternal(w, err.Error())
-		return
+		return nil, utils.ErrInternal(err.Error())
 	}
 	params := &UnsignedBytecodeParams{}
 
-	// Parse and validate query parameters
-	if !utils.ParseAndValidateParams(w, r, params) {
-		return
+	if err := utils.ParseAndValidateParams(r, params); err != nil {
+		return nil, err
 	}
 	/*
 		// calldata: abi.encodeWithSignature("execute(address,uint256,bytes)", rando, 5 ether, hex"");
@@ -463,19 +461,19 @@ func UnsignedBytecode(w http.ResponseWriter, r *http.Request) {
 		// 	return
 		// }
 	*/
+	return nil, nil
 }
 
-func SignedBytecode(w http.ResponseWriter, r *http.Request) {
+func SignedBytecode(r *http.Request) (interface{}, error) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
 	fmt.Print(privateKey, relayAddress)
 	if err != nil {
-		utils.ErrInternal(w, err.Error())
-		return
+		return nil, utils.ErrInternal(err.Error())
 	}
 	params := &SignedBytecodeParams{}
 
-	if !utils.ParseAndValidateParams(w, r, params) {
-		return
+	if err := utils.ParseAndValidateParams(r, &params); err != nil {
+		return nil, err
 	}
 	/*
 		// client, chainInfo, ok := checkClient(w, params.OriginId)
@@ -733,14 +731,14 @@ func SignedBytecode(w http.ResponseWriter, r *http.Request) {
 		// 	return
 		// }
 	*/
+	return nil, nil
 }
 
-func UnsignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
+func UnsignedEscrowPayout(r *http.Request) (interface{}, error) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
 	fmt.Print(privateKey, relayAddress)
 	if err != nil {
-		utils.ErrInternal(w, err.Error())
-		return
+		return nil, utils.ErrInternal(err.Error())
 	}
 	// params := &UnsignedEscrowPayoutParams{}
 
@@ -761,19 +759,19 @@ func UnsignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 
 	// fmt.Printf("\ninput data: %s", params.Bytecode)
 	// fmt.Printf("\ntrace id: %s", params.TraceId)
+	return nil, nil
 }
 
-func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
+func SignedEscrowPayout(r *http.Request) (interface{}, error) {
 	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
 	fmt.Print(privateKey, relayAddress)
 	if err != nil {
-		utils.ErrInternal(w, err.Error())
-		return
+		return nil, utils.ErrInternal(err.Error())
 	}
 	params := &SignedEscrowPayoutParams{}
 
-	if !utils.ParseAndValidateParams(w, r, params) {
-		return
+	if err := utils.ParseAndValidateParams(r, &params); err != nil {
+		return nil, err
 	}
 	/*
 	   _CrosschainPaymasterAddress 0x3647fbDD26946850f7A18599394A4685aaD550BC
@@ -789,6 +787,7 @@ func SignedEscrowPayout(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("\ninput data: %s", params.Bytecode)
 	fmt.Printf("\ntrace id: %s", params.TraceId)
+	return nil, nil
 }
 
 func ViewFunction(client ethclient.Client, contractAddress common.Address, parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
@@ -1566,15 +1565,13 @@ func checkChainStatus(chainId string) (*ethclient.Client, *Chain, error) {
 	return client, chain, nil
 }
 
-func checkClient(w http.ResponseWriter, chainId string) (*ethclient.Client, *Chain, bool) {
+func checkClient(chainId string) (*ethclient.Client, *Chain, error) {
 	client, chainInfo, err := checkChainStatus(chainId)
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
-		return nil, nil, false
+		return nil, nil, err
 	}
 	if client == nil {
-		errUnsupportedChain(w)
-		return nil, nil, false
+		return nil, nil, utils.ErrInternal(errUnsupportedChain(chainId))
 	}
-	return client, chainInfo, true
+	return client, chainInfo, nil
 }

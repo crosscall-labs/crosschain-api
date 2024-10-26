@@ -24,6 +24,8 @@ var privateKey *ecdsa.PrivateKey
 var relayAddress common.Address
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	var response interface{}
+	var err error
 
 	saltHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000037")
 
@@ -49,32 +51,38 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		parsedABI, err := abi.JSON(strings.NewReader(abiStr))
 		if err != nil {
 			fmt.Println(err)
-			utils.ErrInternal(w, err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		parsedABIs[name] = parsedABI
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	switch r.URL.Query().Get("query") {
 	case "unsigned-message":
-		UnsignedRequest(w, r)
-		return
+		response, err = UnsignedRequest(r)
 	case "unsigned-bytecode":
-		UnsignedBytecode(w, r)
-		return
+		response, err = UnsignedBytecode(r)
 	case "signed-bytecode":
-		SignedBytecode(w, r)
-		return
+		response, err = SignedBytecode(r)
 	case "signed-escrow-payout":
 		// will add env restriction on origin later
-		SignedEscrowPayout(w, r)
-		return
+		response, err = SignedEscrowPayout(r)
 	default:
-		version := "Hello, World!"
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(version); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))
+		return
+	}
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+
+	// Write successful JSON response
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 	}
 }

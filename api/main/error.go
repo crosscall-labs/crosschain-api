@@ -2,17 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
-func errUnsupportedChain(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(&utils.Error{
-		Code:    0,
-		Message: "Chain not currently supported",
-	})
+func errUnsupportedChain(chainId string) string {
+	return fmt.Sprintf("Chain ID %s not currently supported", chainId)
 }
 
 func errPaymasterAndDataMismatch(w http.ResponseWriter) {

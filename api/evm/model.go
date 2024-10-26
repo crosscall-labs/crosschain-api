@@ -24,7 +24,7 @@ type MessageEscrowEvm struct {
 
 type MessageOpEvm struct {
 	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndData            `json:"op-paymaster"`
+	PaymasterAndData PaymasterAndDataResponse    `json:"op-paymaster"`
 	UserOpHash       string                      `json:"op-hash"`
 	PriceGwei        string                      `json:"op-price"`
 }
