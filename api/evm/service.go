@@ -2,8 +2,10 @@ package evmHandler
 
 import (
 	"fmt"
+	"math/big"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
@@ -94,5 +96,30 @@ func UnsignedEntryPointRequest(w http.ResponseWriter, r *http.Request, parameter
 	// 	PriceGwei        string                      `json:"op-price"`
 	// }
 
+	// need to create the userop, but to make it real we need to use proper tools to value the gas estimate and over estimate
+	//		for now use fixed values from forge tests
+
+	// todo
+	// 	create default values for packed user op
+	//	create default values for paymaster and data
+	//	create default values for calldata (this should be done by the protocol api since we don't want to delegate using a specifc wallet architecture)
+	//		test data will be using an empty value sent as if it were thorugh signer -> simpleAccount proxy
+	//	combine the transaction gas and cost for execution then multiply by 0.1%, this should be our crosschain fee + bid fee
+	// 		add this value to the paymaster and data AND PriceGwei
+
 	return nil, nil
+}
+
+func GenerateTestPackedUserOperation() PackedUserOperation {
+	return PackedUserOperation{
+		Sender:             common.Address{},
+		Nonce:              big.NewInt(0),
+		InitCode:           []byte{},
+		CallData:           []byte{},
+		AccountGasLimits:   [32]byte{},
+		PreVerificationGas: big.NewInt(20000000),
+		GasFees:            [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		PaymasterAndData:   []byte{},
+		Signature:          []byte{},
+	}
 }
