@@ -77,8 +77,6 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	//		for now use fixed values from forge tests
 
 	// todo
-	// 	create default values for packed user op
-	//	create default values for paymaster and data
 	//	create default values for calldata (this should be done by the protocol api since we don't want to delegate using a specifc wallet architecture)
 	//		test data will be using an empty value sent as if it were thorugh signer -> simpleAccount proxy
 	//	combine the transaction gas and cost for execution then multiply by 0.1%, this should be our crosschain fee + bid fee
@@ -87,6 +85,7 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	packedUserOperation := GenerateTestPackedUserOperation()
 	paymasterAndData := PaymasterAndData{}
 
+	// empty data for basic testing
 	packedUserOperationResponse, _ := ToPackedUserOperationResponse(packedUserOperation)
 	paymasterAndDataResponse, _ := ToPaymasterAndDataResponse(paymasterAndData)
 	return MessageOpEvm{

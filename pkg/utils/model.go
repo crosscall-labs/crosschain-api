@@ -29,3 +29,12 @@ type MessageHeader struct {
 	ToChainId       string `query:"tid"`
 	ToChainSigner   string `query:"tsigner"`
 }
+
+type ChainInfo struct {
+	ID             string
+	VM             string
+	Name           string
+	EscrowType     []int
+	EntrypointType []int
+	Error          error
+}

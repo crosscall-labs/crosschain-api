@@ -293,6 +293,61 @@ func CheckChainType(chainId string) (string, string, string, []int, []int, strin
 	}
 }
 
+var disabled = func(chainId string) error {
+	return ErrMalformedRequest(fmt.Sprintf("unsupported chain ID: %s", chainId))
+}
+
+var chainInfoMap = map[string]ChainInfo{
+	"0x3106A":      {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"200810":       {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0x4268":       {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"17000":        {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0xAA36A7":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"11155111":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0xE34":        {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+	"3636":         {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+	"0xF35A":       {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"62298":        {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0x13881":      {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+	"80001":        {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+	"0x13882":      {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+	"80002":        {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+	"0xC3":         {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+	"195":          {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+	"0xAEF3":       {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+	"44787":        {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+	"0x5E9":        {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+	"1513":         {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+	"0x8274F":      {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+	"534351":       {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+	"0xAA37DC":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+	"11155420":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+	"0x66EEE":      {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+	"421614":       {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+	"0x14A34":      {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+	"84532":        {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+	"0x4CB2F":      {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+	"314159":       {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+	"0xBF03":       {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+	"48899":        {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+	"0x63639999":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+	"1667471769":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+	"0x53564D0002": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+	"357930172418": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+	"0x53564D0003": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+	"357930172419": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+	"0x53564D0004": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+	"357930172420": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+}
+
+func CheckChainType2(chainId string) (string, string, string, []int, []int, string) {
+	if info, found := chainInfoMap[chainId]; found {
+		return info.ID, info.VM, info.Name, info.EscrowType, info.EntrypointType, info.Error
+	}
+	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
+	return "", "", "", nil, nil, disabled
+}
+
 // Helper function to convert []byte to hex string prefixed with "0x".
 func ToHexBytes(data []byte) string {
 	if len(data) == 0 {
