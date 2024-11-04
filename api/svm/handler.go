@@ -1,4 +1,4 @@
-package spotHandler
+package svmHandler
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package tvmHandler
+package svmHandler
 
 import "github.com/laminafinance/crosschain-api/pkg/utils"
 

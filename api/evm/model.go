@@ -64,6 +64,8 @@ type PaymasterAndData struct {
 	AssetAmount                   *big.Int
 }
 
+// needs to return hash for recommended, but also needs to make it easy for solver to hash
+// to hash abi encode packed the data (in order)
 type PaymasterAndDataResponse struct {
 	Paymaster                     string `json:"pad-paymaster"`
 	PaymasterVerificationGasLimit string `json:"pad-verification-gas-limit"`

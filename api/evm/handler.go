@@ -2,9 +2,13 @@ package evmHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 
+	"github.com/laminafinance/crosschain-api/pkg/db"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/supabase-community/supabase-go"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -12,6 +16,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		var response interface{}
 		var err error
+		supabaseUrl := os.Getenv("SUPABASE_URL")
+		supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+		supabaseClient, err := supabase.NewClient(supabaseUrl, supabaseKey, nil)
+		if err != nil {
+			http.Error(w, "Failed to create Supabase client", http.StatusInternalServerError)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		switch query.Get("query") {
@@ -26,6 +37,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
+			if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+				fmt.Printf("Failed to log error: %v\n", logErr.Error())
+			}
+
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(err)
 			return

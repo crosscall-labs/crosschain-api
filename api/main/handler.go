@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
+	"os"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/laminafinance/crosschain-api/pkg/db"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/supabase-community/supabase-go"
 )
 
 // need query for creating an escrow lock
@@ -26,36 +27,19 @@ var relayAddress common.Address
 func Handler(w http.ResponseWriter, r *http.Request) {
 	var response interface{}
 	var err error
+	supabaseUrl := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+	supabaseClient, err := supabase.NewClient(supabaseUrl, supabaseKey, nil)
+	if err != nil {
+		http.Error(w, "Failed to create Supabase client", http.StatusInternalServerError)
+		return
+	}
 
 	saltHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000037")
 
 	// Cast common.Hash to [32]byte
 	var SALT [32]byte
 	copy(SALT[:], saltHash[:]) // 55
-
-	contractABIs := map[string]string{
-		"Entrypoint":           contractAbiEntrypoint,
-		"SimpleAccount":        contractAbiSimpleAccount,
-		"SimpleAccountFactory": contractAbiSimpleAccountFactory,
-		"Multicall":            contractAbiMulticall,
-		"HyperlaneMailbox":     contractAbiHyperlaneMailbox,
-		"HyperlaneIgp":         contractAbiHyperlaneIgp,
-		"Paymaster":            contractAbiPaymaster,
-		"Escrow":               contractAbiEscrow,
-		"EscrowFactory":        contractAbiEscrowFactory,
-	}
-
-	parsedABIs := make(map[string]abi.ABI)
-
-	for name, abiStr := range contractABIs {
-		parsedABI, err := abi.JSON(strings.NewReader(abiStr))
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		parsedABIs[name] = parsedABI
-	}
 
 	w.Header().Set("Content-Type", "application/json")
 	switch r.URL.Query().Get("query") {
@@ -75,6 +59,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+			fmt.Printf("Failed to log error: %v\n", logErr.Error())
+		}
+
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(err)
 		return

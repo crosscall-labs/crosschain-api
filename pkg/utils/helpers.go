@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -118,19 +119,38 @@ func (e Error) Error() string {
 // 	})
 // }
 
+func GetOrigin() string {
+	pc, _, _, ok := runtime.Caller(2)
+	if !ok {
+		return "unknown"
+	}
+	funcName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(funcName, ".")
+	if len(parts) > 1 {
+		return strings.Join(parts[:len(parts)-1], ".")
+	}
+	return "unknown"
+}
+
 func ErrMalformedRequest(message string) error {
+	origin := GetOrigin()
+
 	return Error{
 		Code:    400,
 		Message: "Malformed request",
 		Details: message,
+		Origin:  origin,
 	}
 }
 
-func ErrInternal(message string) error {
+func ErrInternal(message string) Error {
+	origin := GetOrigin()
+
 	return Error{
 		Code:    500,
 		Message: "Internal server error",
 		Details: message,
+		Origin:  origin,
 	}
 }
 
@@ -342,7 +362,7 @@ var chainInfoMap = map[string]ChainInfo{
 
 func CheckChainType2(chainId string) (string, string, string, []int, []int, string) {
 	if info, found := chainInfoMap[chainId]; found {
-		return info.ID, info.VM, info.Name, info.EscrowType, info.EntrypointType, info.Error
+		return info.ID, info.VM, info.Name, info.EscrowType, info.EntrypointType, ""
 	}
 	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
 	return "", "", "", nil, nil, disabled

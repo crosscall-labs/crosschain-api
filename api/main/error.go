@@ -42,3 +42,7 @@ func errInsufficientEscrowBalance(w http.ResponseWriter) {
 		Message: "Insufficient escrow balance",
 	})
 }
+
+func GetOrigin() string {
+	return utils.GetOrigin()
+}
