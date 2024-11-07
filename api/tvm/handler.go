@@ -28,8 +28,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		switch query.Get("query") {
 		case "unsigned-escrow-request":
 			response, err = UnsignedEscrowRequest(r)
-		// case "unsigned-entrypoint-request":
-		// 	response, err = UnsignedEntryPointRequest(r)
+		case "unsigned-entrypoint-request":
+			response, err = UnsignedEntryPointRequest(r)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))

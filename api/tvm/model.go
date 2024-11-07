@@ -8,6 +8,44 @@ import (
 )
 
 /*
+tvm message to the entrypoint
+the concept of this message is we describe a message with empty body to transfer funds from the proxy wallet to the solver2.address
+const queryId = Math.floor(Math.random() * 10000);
+const passing = await entrypoint.sendExecute(solver1.getSender(),
+		toNano('5'),
+		{
+				destination: proxyWallet.address,
+				queryId: queryId,
+				messageToProxyWallet: {
+						queryId: queryId,
+						signature: {
+								v: 0,
+								r: '0',
+								s: '0',
+						},
+						data: {
+								regime: 0,
+								destination: solver2.address,
+								value: toNano('5'),
+								body: beginCell().endCell(),
+						},
+				},
+		}
+		);
+
+expect(passing.transactions).toHaveTransaction({
+		from: solver1.address,
+		to: entrypoint.address,
+		success: true,
+});
+
+expect(passing.transactions).toHaveTransaction({
+		from: entrypoint.address,
+		to: proxyWallet.address,
+});
+
+
+
 tvm message to proxy wallet that will be signed and subsquently sent to the entrypoint by the solver
     describe('Execution', () => {
         console.log("Execution tests");
