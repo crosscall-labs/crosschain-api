@@ -5,6 +5,7 @@
 - [ ] test messages
 - [ ] ci/cd test (github) (kinda already done with vercel but need action tests)
 - [x] modulate project
+- [ ] setup compiled contract code else where to fetch, rather than update manually
 
 ### random chores (low priority)
 

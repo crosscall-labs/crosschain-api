@@ -1,12 +1,5 @@
 package tvmHandler
 
-import (
-	"crypto/sha256"
-	"fmt"
-
-	cell "github.com/xssnick/tonutils-go/tvm/cell"
-)
-
 /*
 tvm message to the entrypoint
 the concept of this message is we describe a message with empty body to transfer funds from the proxy wallet to the solver2.address
@@ -225,33 +218,33 @@ type Address struct {
 // }
 
 // GenerateContractAddress generates the contract address from the workchain and init cells.
-func GenerateContractAddress(workchain int32, codeCell *cell.Cell, dataCell *cell.Cell) (*Address, error) {
-	// Step 1: Create a StateInit cell
-	stateInitCell := NewBuilder()
+// func GenerateContractAddress(workchain int32, codeCell *cell.Cell, dataCell *cell.Cell) (*Address, error) {
+// 	// Step 1: Create a StateInit cell
+// 	stateInitCell := NewBuilder()
 
-	// Serialize `code` and `data` cells into StateInit cell
-	if err := stateInitCell.StoreCell(codeCell); err != nil {
-		return nil, fmt.Errorf("failed to store code cell: %v", err)
-	}
-	if err := stateInitCell.StoreCell(dataCell); err != nil {
-		return nil, fmt.Errorf("failed to store data cell: %v", err)
-	}
+// 	// Serialize `code` and `data` cells into StateInit cell
+// 	if err := stateInitCell.StoreCell(codeCell); err != nil {
+// 		return nil, fmt.Errorf("failed to store code cell: %v", err)
+// 	}
+// 	if err := stateInitCell.StoreCell(dataCell); err != nil {
+// 		return nil, fmt.Errorf("failed to store data cell: %v", err)
+// 	}
 
-	// Step 2: Serialize StateInit and hash it
-	stateInitSerialized, err := stateInitCell.EndCell().ToBOC()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize state init: %v", err)
-	}
-	hash := sha256.Sum256(stateInitSerialized)
+// 	// Step 2: Serialize StateInit and hash it
+// 	stateInitSerialized, err := stateInitCell.EndCell().ToBOC()
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to serialize state init: %v", err)
+// 	}
+// 	hash := sha256.Sum256(stateInitSerialized)
 
-	// Step 3: Combine workchain and hash to create the address
-	address := &Address{
-		Workchain: workchain,
-		Hash:      hash[:],
-	}
+// 	// Step 3: Combine workchain and hash to create the address
+// 	address := &Address{
+// 		Workchain: workchain,
+// 		Hash:      hash[:],
+// 	}
 
-	return address, nil
-}
+// 	return address, nil
+// }
 
 // for the crosschain api we cannot calculate the escrow address if we don't know the salt input
 /*

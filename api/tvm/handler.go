@@ -37,12 +37,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
-				fmt.Printf("Failed to log error: %v\n", logErr.Error())
-			}
-
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(err)
+			logError(w, r, supabaseClient, err, response)
 			return
 		}
 
@@ -53,4 +48,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}))
 
 	handlerWithCORS.ServeHTTP(w, r)
+}
+
+func logError(w http.ResponseWriter, r *http.Request, supabaseClient *supabase.Client, err error, response interface{}) {
+	if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+		fmt.Printf("Failed to log error: %v\n", logErr.Error())
+	}
+
+	w.WriteHeader(http.StatusInternalServerError)
+	json.NewEncoder(w).Encode(err)
 }

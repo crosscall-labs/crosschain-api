@@ -368,12 +368,163 @@ func CheckChainType2(chainId string) (string, string, string, []int, []int, stri
 	return "", "", "", nil, nil, disabled
 }
 
+var chainClientMap = map[string]ChainInfo{
+	"0x3106A":      {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"200810":       {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0x4268":       {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"17000":        {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0xAA36A7":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"11155111":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0xE34":        {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+	"3636":         {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+	"0xF35A":       {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"62298":        {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+	"0x13881":      {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+	"80001":        {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+	"0x13882":      {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+	"80002":        {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+	"0xC3":         {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+	"195":          {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+	"0xAEF3":       {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+	"44787":        {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+	"0x5E9":        {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+	"1513":         {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+	"0x8274F":      {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+	"534351":       {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+	"0xAA37DC":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+	"11155420":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+	"0x66EEE":      {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+	"421614":       {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+	"0x14A34":      {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+	"84532":        {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+	"0x4CB2F":      {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+	"314159":       {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+	"0xBF03":       {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+	"48899":        {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+	"0x63639999":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+	"1667471769":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+	"0x53564D0002": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+	"357930172418": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+	"0x53564D0003": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+	"357930172419": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+	"0x53564D0004": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+	"357930172420": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+}
+
+// func checkChainStatus(chainId string) (*ethclient.Client, *Chain, error) {
+// 	var client *ethclient.Client
+// 	var chain *Chain
+// 	var err error
+
+// 	var rpcURL string
+// 	var addresses Chain
+
+// 	switch chainId {
+// 	case "0x3106A", "200810":
+// 		chainId = "200810"
+// 		rpcURL = "https://testnet-rpc.bitlayer.org"
+// 		addresses = Chain{
+// 			AddressEntrypoint:            "0x317bBdFbAe7845648864348A0C304392d0F2925F",
+// 			AddressEntrypointSimulations: "0x6960fA06d5119258533B5d715c8696EE66ca4042",
+// 			AddressSimpleAccountFactory:  "0xCF730748FcDc78A5AB854B898aC24b6d6001AbF7",
+// 			AddressSimpleAccount:         "0xfaAe830bA56C40d17b7e23bfe092f23503464114",
+// 			AddressMulticall:             "0x66e4f2437c5F612Ae25e94C1C549cb9f151E0cB3",
+// 			AddressHyperlaneMailbox:      "0x2EaAd60F982f7B99b42f30e98B3b3f8ff89C0A46",
+// 			AddressHyperlaneIgp:          "0x16e81e1973939bD166FDc61651F731e1658060F3",
+// 			AddressPaymaster:             "0xdAE5e7CEBe4872BF0776477EcCCD2A0eFdF54f0e",
+// 			AddressEscrow:                "0x9925D4a40ea432A25B91ab424b16c8FC6e0Eec5A",
+// 			AddressEscrowFactory:         "0xC531388B2C2511FDFD16cD48f1087A747DC34b33",
+// 		}
+// 	case "0x4268", "17000":
+// 		chainId = "200810"
+// 		rpcURL = "https://ethereum-holesky-rpc.publicnode.com"
+// 		addresses = Chain{
+// 			AddressEntrypoint:            "0xc5Ff094002cdaF36d6a766799eB63Ec82B8C79F1",
+// 			AddressEntrypointSimulations: "0x67B9841e9864D394FDc02e787A0Ac37f32B49eC7",
+// 			AddressSimpleAccountFactory:  "0x39351b719D044CF6E91DEC75E78e5d128c582bE7",
+// 			AddressSimpleAccount:         "0x0983a4e9D9aB03134945BFc9Ec9EF31338AB7465",
+// 			AddressMulticall:             "0x98876409cc48507f8Ee8A0CCdd642469DBfB3E21",
+// 			AddressHyperlaneMailbox:      "0x913A6477496eeb054C9773843a64c8621Fc46e8C",
+// 			AddressHyperlaneIgp:          "0x2Fb9F9bd9034B6A5CAF3eCDB30db818619EbE9f1",
+// 			AddressPaymaster:             "0xA5bcda4aA740C02093Ba57A750a8f424BC8B4B13",
+// 			AddressEscrow:                "0x686130A96724734F0B6f99C6D32213BC62C1830A",
+// 			AddressEscrowFactory:         "0x45d5D46B097870223fDDBcA9a9eDe35A7D37e2A1",
+// 		}
+// 	case "0xaa36a7", "11155111":
+// 		chainId = "11155111"
+// 		rpcURL = "https://rpc2.sepolia.org"
+// 		addresses = Chain{
+// 			AddressEntrypoint:            "0xA6eBc93dA2C99654e7D6BC12ed24362061805C82",
+// 			AddressEntrypointSimulations: "0x0d17dE0436b65279c8D7A75847F84626687A1647",
+// 			AddressSimpleAccountFactory:  "0x54bed3E354cbF23C2CADaB1dF43399473e38a358",
+// 			AddressSimpleAccount:         "0x54bed3E354cbF23C2CADaB1dF43399473e38a358",
+// 			AddressMulticall:             "0x6958206f218D8f889ECBb76B89eE9bF1CAe37715",
+// 			AddressHyperlaneMailbox:      "0xAc165ff97Dc42d87D858ba8BC4AA27429a8C48e8",
+// 			AddressHyperlaneIgp:          "0x00eb6D45afac57E708eC3FA6214BFe900aFDb95D",
+// 			AddressPaymaster:             "0x31aCA626faBd9df61d24A537ecb9D646994b4d4d",
+// 			AddressEscrow:                "0xea8D264dF67c9476cA80A24067c2F3CF7726aC4d",
+// 			AddressEscrowFactory:         "0xd9842E241B7015ea1E1B5A90Ae20b6453ADF2723",
+// 		}
+// 	case "0xe34", "3636":
+// 		chainId = "3636"
+// 		rpcURL = "https://node.botanixlabs.dev"
+// 		addresses = Chain{
+// 			AddressEntrypoint:            "0xF7B12fFBC58dd654aeA52f1c863bf3f4731f848F",
+// 			AddressEntrypointSimulations: "0x1db7F1263FbfBe5d91548B3422563179f6bE8d99",
+// 			AddressSimpleAccountFactory:  "0xFB23dB8098Faf2dB307110905dC3698Fe27E136d",
+// 			AddressSimpleAccount:         "0x15aA997cC02e103a7570a1C26F09996f6FBc1829",
+// 			AddressMulticall:             "0x6cB50ee0241C7AE6Ebc30A34a9F3C23A96098bBf",
+// 			AddressHyperlaneMailbox:      "0xd2DB8440B7dC1d05aC2366b353f1cF205Cf875EA",
+// 			AddressHyperlaneIgp:          "0x8439DBdca66C9F72725f1B2d50dFCdc7c6CBBbEb",
+// 			AddressPaymaster:             "0xbbfb649f42Baf44729a150464CBf6B89349A634a",
+// 			AddressEscrow:                "0xCD77545cA802c4B05ff359f7b10355EC220E7476",
+// 			AddressEscrowFactory:         "0xA6eBc93dA2C99654e7D6BC12ed24362061805C82",
+// 		}
+// 	default:
+// 		return nil, nil, fmt.Errorf("unsupported chain ID: %s", chainId)
+// 	}
+
+// 	client, err = ethclient.Dial(rpcURL)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+
+// 	domain, err := strconv.ParseUint(chainId, 0, 32)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+
+// 	chain = &Chain{
+// 		ChainId:                      chainId,
+// 		Domain:                       uint32(domain),
+// 		AddressEntrypoint:            addresses.AddressEntrypoint,
+// 		AddressEntrypointSimulations: addresses.AddressEntrypointSimulations,
+// 		AddressSimpleAccountFactory:  addresses.AddressSimpleAccountFactory,
+// 		AddressMulticall:             addresses.AddressMulticall,
+// 		AddressHyperlaneMailbox:      addresses.AddressHyperlaneMailbox,
+// 		AddressHyperlaneIgp:          addresses.AddressHyperlaneIgp,
+// 		AddressPaymaster:             addresses.AddressPaymaster,
+// 		AddressEscrow:                addresses.AddressEscrow,
+// 		AddressEscrowFactory:         addresses.AddressEscrowFactory,
+// 	}
+
+// 	return client, chain, nil
+// }
+
 // Helper function to convert []byte to hex string prefixed with "0x".
 func ToHexBytes(data []byte) string {
 	if len(data) == 0 {
 		return "0x"
 	}
 	return "0x" + hex.EncodeToString(data)
+}
+
+func HexToBytes(hexStr string) ([]byte, error) {
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
 
 // Helper function to convert common.Address to hex string prefixed with "0x".

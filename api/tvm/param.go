@@ -1,14 +1,23 @@
 package tvmHandler
 
 import (
+	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/binary"
+	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/tyler-smith/go-bip39"
+	"golang.org/x/crypto/sha3"
 
 	//cell "github.com/xssnick/tonutils-go/tvm/cell"
 	//tlb "github.com/xssnick/tonutils-go/tl"
-	//cell "github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -31,35 +40,113 @@ import (
 // no proxy wallet init required (supposedly), I think we need to evaluate this is true but later
 // for now we have the init generation in the op
 
-/**
+/*
+*
 
 need to create this function in golang
-slice calculate_user_proxy_wallet_address(int evm_address, slice entrypoint_address, cell proxy_wallet_code) inline {
-  return calculate_proxy_wallet_address(calculate_proxy_wallet_state_init(evm_address, entrypoint_address, proxy_wallet_code));
-}
+
+	slice calculate_user_proxy_wallet_address(int evm_address, slice entrypoint_address, cell proxy_wallet_code) inline {
+	  return calculate_proxy_wallet_address(calculate_proxy_wallet_state_init(evm_address, entrypoint_address, proxy_wallet_code));
+	}
 
 then this
-slice calculate_proxy_wallet_address(cell state_init) inline {
-  return begin_cell().store_uint(4, 3)
-                     .store_int(workchain, 8)
-                     .store_uint(cell_hash(state_init), 256)
-                     .end_cell()
-                     .begin_parse();
-}
+
+	slice calculate_proxy_wallet_address(cell state_init) inline {
+	  return begin_cell().store_uint(4, 3)
+	                     .store_int(workchain, 8)
+	                     .store_uint(cell_hash(state_init), 256)
+	                     .end_cell()
+	                     .begin_parse();
+	}
 
 then we need to build a message to this with state_init code
-cell calculate_proxy_wallet_state_init(int evm_address, slice entrypoint_address, cell proxy_wallet_code) inline {
-  return begin_cell()
-          .store_uint(0, 2)
-          .store_dict(proxy_wallet_code)
-          .store_dict(pack_proxy_wallet_data(0, evm_address, entrypoint_address, proxy_wallet_code))
-          .store_uint(0, 1)
-         .end_cell();
+
+	cell calculate_proxy_wallet_state_init(int evm_address, slice entrypoint_address, cell proxy_wallet_code) inline {
+	  return begin_cell()
+	          .store_uint(0, 2)
+	          .store_dict(proxy_wallet_code)
+	          .store_dict(pack_proxy_wallet_data(0, evm_address, entrypoint_address, proxy_wallet_code))
+	          .store_uint(0, 1)
+	         .end_cell();
+	}
+*/
+type Signature struct {
+	V uint64
+	R string // hex string
+	S string // hex string
 }
 
+func signatureToCell(signature Signature) (*cell.Cell, error) {
+	r := new(big.Int)
+	s := new(big.Int)
 
+	if _, ok := r.SetString(signature.R, 16); !ok {
+		return nil, fmt.Errorf("invalid R hex string: %s", signature.R)
+	}
+	if _, ok := s.SetString(signature.S, 16); !ok {
+		return nil, fmt.Errorf("invalid S hex string: %s", signature.S)
+	}
 
-*/
+	c := cell.BeginCell().
+		MustStoreUInt(signature.V, 8).
+		MustStoreBigInt(r, 256).
+		MustStoreBigInt(s, 256)
+
+	return c.EndCell(), nil
+}
+
+type ExecutionData struct {
+	Regime      bool
+	Destination string
+	Value       *big.Int
+	Body        *cell.Cell
+}
+
+func executionDataToCell(data ExecutionData) *cell.Cell {
+	destAddr := address.MustParseRawAddr(data.Destination)
+	c := cell.BeginCell().
+		MustStoreBoolBit(data.Regime).
+		MustStoreAddr(destAddr).
+		MustStoreBigCoins(data.Value)
+
+	if data.Body != nil {
+		c.MustStoreRef(data.Body)
+	}
+
+	return c.EndCell()
+}
+
+func hashCellWithEthereumPrefix(cellData []byte) ([]byte, error) {
+	initialHash := sha3.NewLegacyKeccak256()
+	initialHash.Write(cellData)
+	cellHash := initialHash.Sum(nil)
+
+	prefix := []byte("\x19Ethereum Signed Message:\n32")
+	prefixedMessage := append(prefix, cellHash...)
+
+	finalHash := sha3.NewLegacyKeccak256()
+	finalHash.Write(prefixedMessage)
+	return finalHash.Sum(nil), nil
+}
+
+type ProxyWalletMessage struct {
+	QueryId   uint64
+	Signature Signature
+	Data      ExecutionData
+}
+
+func proxyWalletMessageToCell(message ProxyWalletMessage) *cell.Cell {
+	signatureCell, _ := signatureToCell(message.Signature)
+	executionDataCell := executionDataToCell(message.Data)
+
+	c := cell.BeginCell().
+		MustStoreUInt(11, 32).
+		MustStoreUInt(message.QueryId, 64).
+		MustStoreRef(signatureCell).
+		MustStoreRef(executionDataCell)
+
+	return c.EndCell()
+}
 
 func packProxyWalletData(nonce int, ownerEvmAddress int, entrypointAddress *cell.Cell) *cell.Cell {
 	c := cell.BeginCell().
@@ -82,33 +169,192 @@ func calculateProxyWalletStateInit(evmAddress int, entrypointAddress *cell.Cell,
 }
 
 func calculate_proxy_wallet_address(state_init *cell.Cell, workchain int) *cell.Slice {
-	// Generate the proxy wallet address using the state_init and workchain
+	hash := state_init.Hash()
 	return cell.BeginCell().
-		StoreUInt(4, 3).
-		storeI(workchain, 8).                  // Store the workchain id (usually 0 for the main network).
-		StoreUInt(cell.Hash(state_init), 256). // Store the hash of the state_init cell.
+		MustStoreUInt(4, 3).
+		MustStoreInt(int64(workchain), 8).
+		MustStoreUInt(binary.LittleEndian.Uint64(hash), 256).
 		EndCell().
-		BeginParse() /// needs top be fix
+		BeginParse()
 }
+
+func entrypointMessageWithProxyInit(
+	evmAddress int,
+	entrypointAddress *cell.Cell,
+	proxyWalletCode *cell.Dictionary,
+	message ProxyWalletMessage,
+	workchain int,
+) (*cell.Cell, error) {
+	stateInit := calculateProxyWalletStateInit(evmAddress, entrypointAddress, proxyWalletCode)
+	proxyAddress := calculate_proxy_wallet_address(stateInit, workchain)
+	proxyWalletMsgCell := proxyWalletMessageToCell(message)
+
+	body := cell.BeginCell().
+		MustStoreRef(stateInit).
+		MustStoreRef(proxyWalletMsgCell).
+		EndCell()
+
+	proxyAddrBits := proxyAddress.MustLoadAddr().BitsLen()
+
+	entrypointMsg := cell.BeginCell().
+		MustStoreSlice(proxyAddress.MustLoadSlice(proxyAddrBits), uint(proxyAddrBits)).
+		MustStoreRef(body).
+		EndCell()
+
+	return entrypointMsg, nil
+}
+
+func entrypointMessageWithoutProxyInit(
+	evmAddress int,
+	entrypointAddress *cell.Cell,
+	proxyWalletCode *cell.Dictionary,
+	message ProxyWalletMessage,
+	workchain int,
+) (*cell.Cell, error) {
+	stateInit := calculateProxyWalletStateInit(evmAddress, entrypointAddress, proxyWalletCode)
+	proxyAddress := calculate_proxy_wallet_address(stateInit, workchain)
+	proxyWalletMsgCell := proxyWalletMessageToCell(message)
+
+	proxyAddrBits := proxyAddress.MustLoadAddr().BitsLen()
+
+	entrypointMsg := cell.BeginCell().
+		MustStoreSlice(proxyAddress.MustLoadSlice(proxyAddrBits), uint(proxyAddrBits)).
+		MustStoreRef(proxyWalletMsgCell).
+		EndCell()
+
+	return entrypointMsg, nil
+}
+
+func createEntrypointMessage(
+	evmAddress int,
+	entrypointAddress *cell.Cell,
+	proxyWalletCode *cell.Dictionary,
+	message ProxyWalletMessage,
+	workchain int,
+	withProxyInit bool,
+) (*cell.Cell, error) {
+	var entrypointMessage *cell.Cell
+	var err error
+	if withProxyInit {
+		entrypointMessage, err = entrypointMessageWithProxyInit(evmAddress, entrypointAddress, proxyWalletCode, message, workchain)
+	} else {
+		entrypointMessage, err = entrypointMessageWithoutProxyInit(evmAddress, entrypointAddress, proxyWalletCode, message, workchain)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create entrypoint message: %w", err)
+	}
+
+	finalCell := cell.BeginCell().
+		MustStoreUInt(1, 32).            // operation (op)
+		MustStoreUInt(1234, 64).         // queryId, update with actual queryId
+		MustStoreRef(entrypointMessage). // store the entrypoint message cell reference
+		EndCell()
+
+	return finalCell, nil
+}
+
+func derivePrivateKeyFromMnemonic(mnemonic string) (ed25519.PrivateKey, error) {
+	seed := bip39.NewSeed(mnemonic, "")
+	hash := sha256.Sum256(seed)
+	privKey := ed25519.NewKeyFromSeed(hash[:32])
+	return privKey, nil
+}
+
+func createWalletFromMnemonic(mnemonic string, api wallet.TonAPI, version wallet.VersionConfig) (*wallet.Wallet, error) {
+	privKey, err := derivePrivateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive private key: %v", err)
+	}
+
+	wallet, err := wallet.FromPrivateKey(api, privKey, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wallet: %v", err)
+	}
+
+	return wallet, nil
+}
+
+func connectToClient(config string) (context.Context, ton.APIClientWrapped, error) {
+	client := liteclient.NewConnectionPool()
+
+	cfg, err := liteclient.GetConfigFromUrl(context.Background(), config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get config err: ", err.Error())
+	}
+
+	err = client.AddConnectionsFromConfig(context.Background(), cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connection err: ", err.Error())
+	}
+
+	api := ton.NewAPIClient(client, ton.ProofCheckPolicyFast).WithRetry()
+	api.SetTrustedBlockFromConfig(cfg)
+
+	ctx := client.StickyContext(context.Background())
+	return ctx, api, nil
+}
+
+func ConnectToTestnetClient() (context.Context, ton.APIClientWrapped, error) {
+	return connectToClient("https://ton.org/testnet-global.config.json")
+}
+
+func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
+	return connectToClient("https://ton.org/global.config.json")
+}
+
+// func buildMessage() {
+// 	w := &wallet.Wallet{}
+// }
+
+// func CheckProxyWalletInitialized(proxyAddress string) (bool, error) {
+// 	// Create a new instance of the TON client
+// 	client := your_ton_client_library.NewClient()
+
+// 	state, err := client.GetContractState(proxyAddress)
+// 	if err != nil {
+// 		return false, err
+// 	}
+
+// 	if state.CodeSize > 0 {
+// 		return true, nil
+// 	}
+
+// 	return false, nil
+// }
 
 // the proxy wallet is essentially data loaded from a storage contract onto the main proxy contract
-func GenerateTestTvmOperation() PackedUserOperation {
-	return PackedUserOperation{
-		InitCode: []byte{}, // fkin garabage we need to initialize seperately
-		// this means I literally need to rewrite our func contracts, fk fkkity fk
-		Sender:             common.Address{},
-		Nonce:              big.NewInt(0),
-		InitCode:           []byte{},
-		CallData:           []byte{},
-		AccountGasLimits:   [32]byte{},
-		PreVerificationGas: big.NewInt(20000000),
-		GasFees:            [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		PaymasterAndData:   []byte{},
-		Signature:          []byte{},
-	}
-}
+// func GenerateTestTvmOperation() PackedUserOperation {
+// 	return PackedUserOperation{
+// 		InitCode: []byte{}, // fkin garabage we need to initialize seperately
+// 		// this means I literally need to rewrite our func contracts, fk fkkity fk
+// 		Sender:             common.Address{},
+// 		Nonce:              big.NewInt(0),
+// 		InitCode:           []byte{},
+// 		CallData:           []byte{},
+// 		AccountGasLimits:   [32]byte{},
+// 		PreVerificationGas: big.NewInt(20000000),
+// 		GasFees:            [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+// 		PaymasterAndData:   []byte{},
+// 		Signature:          []byte{},
+// 	}
+// }
 
 // need rts/lts on ton via
+// type ExecutionData struct {
+// 	Regime      bool
+// 	Destination string
+// 	Value       *big.Int
+// 	Body        *cell.Cell
+// }
+
+// func entrypointMessageWithProxyInit(
+// evmAddress int,
+// entrypointAddress *cell.Cell,
+// proxyWalletCode *cell.Dictionary,
+// message ProxyWalletMessage,
+// workchain int,
+// withProxyInit bool,
 
 // both need to be fixed
 type MessageEscrowTvm struct {
@@ -119,6 +365,17 @@ type MessageEscrowTvm struct {
 	EscrowAmount    string `json:"eamount"`
 	EscrowValueType string `json:"evaluetype"`
 	EscrowValue     string `json:"evalue"`
+}
+
+type UnsignedEntryPointRequestParams struct {
+	Header    utils.MessageHeader `query:"header"`
+	ProxyData string              `query:"payload" optional:"true"`
+}
+
+type EntrypointMessageParams struct {
+	EvmAddress        string `query:"pw-evm-address"`
+	EntrypointAddress string `query:"pw-entrypoint"`
+	ProxyWalletCode   string `query:"pw-code"`
 }
 
 type MessageOpTvm struct {
