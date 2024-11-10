@@ -28,29 +28,35 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		switch query.Get("query") {
 		case "unsigned-escrow-request":
 			response, err = UnsignedEscrowRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		case "unsigned-entrypoint-request":
 			response, err = UnsignedEntryPointRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))
 			return
 		}
-
-		if err != nil {
-			if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
-				fmt.Printf("Failed to log error: %v\n", logErr.Error())
-			}
-
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(err)
-			return
-		}
-
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-		}
 	}))
 
 	handlerWithCORS.ServeHTTP(w, r)
+}
+
+func HandleResponse(w http.ResponseWriter, r *http.Request, supabaseClient *supabase.Client, response interface{}, err error) {
+	if err != nil {
+		if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+			fmt.Printf("Failed to log error: %v\n", logErr.Error())
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	}
 }

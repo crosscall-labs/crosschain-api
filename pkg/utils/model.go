@@ -19,6 +19,14 @@ type PartialHeader struct {
 	ChainSigner string `query:"signer"`
 }
 
+type PartialHeaderResponse struct {
+	TxType      string `json:"txtype"`
+	ChainName   string `json:"name"`
+	ChainType   string `json:"type"`
+	ChainId     string `json:"id"`
+	ChainSigner string `json:"signer"`
+}
+
 type MessageHeader struct {
 	TxType          string `query:"txtype"`                // for now just type1 tx and type0 (legacy)
 	FromChainName   string `query:"fname" optional:"true"` // add later for QoL
@@ -29,6 +37,18 @@ type MessageHeader struct {
 	ToChainType     string `query:"ttype" optional:"true"` // add later for QoL
 	ToChainId       string `query:"tid"`
 	ToChainSigner   string `query:"tsigner"`
+}
+
+type MessageHeaderResponse struct {
+	TxType          string `json:"txtype"`
+	FromChainName   string `json:"fname"`
+	FromChainType   string `json:"ftype"`
+	FromChainId     string `json:"fid"`
+	FromChainSigner string `json:"fsigner"`
+	ToChainName     string `json:"tname"`
+	ToChainType     string `json:"ttype"`
+	ToChainId       string `json:"tid"`
+	ToChainSigner   string `json:"tsigner"`
 }
 
 type ChainInfo struct {

@@ -27,54 +27,49 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 }
 
 func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequestParams) (interface{}, error) {
-	var params *UnsignedEscrowRequestParams
-	//var err Error
+	// var params *UnsignedEscrowRequestParams
+	// //var err Error
 
-	if len(parameters) > 0 {
-		params = parameters[0]
-	} else {
-		params = &UnsignedEscrowRequestParams{}
-	}
+	// if len(parameters) > 0 {
+	// 	params = parameters[0]
+	// } else {
+	// 	params = &UnsignedEscrowRequestParams{}
+	// }
 
-	if r != nil {
-		if err := utils.ParseAndValidateParams(r, &params); err != nil {
-			return nil, err
-		}
-	}
+	// if r != nil {
+	// 	if err := utils.ParseAndValidateParams(r, &params); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
-	var errorStr string
-	params.Header.ChainId, params.Header.ChainType, params.Header.ChainName, errorStr = utils.CheckChainPartialType(params.Header.ChainId, "escrow", params.Header.TxType)
-	if errorStr != "" {
-		return nil, utils.ErrMalformedRequest(errorStr)
-	}
+	// var errorStr string
+	// params.Header.ChainId, params.Header.ChainType, params.Header.ChainName, errorStr = utils.CheckChainPartialType(params.Header.ChainId, "escrow", params.Header.TxType)
+	// if errorStr != "" {
+	// 	return nil, utils.ErrMalformedRequest(errorStr)
+	// }
 
 	return MessageEscrowTvm{}, nil
 }
 
 func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
-	var params *UnsignedEntryPointRequestParams
+	// var params *UnsignedEntryPointRequestParams
 
-	if len(parameters) > 0 {
-		params = parameters[0]
-	} else {
-		params = &UnsignedEntryPointRequestParams{}
-	}
+	// if len(parameters) > 0 {
+	// 	params = parameters[0]
+	// } else {
+	// 	params = &UnsignedEntryPointRequestParams{}
+	// }
 
-	if r != nil {
-		if err := utils.ParseAndValidateParams(r, &params); err != nil {
-			return nil, err
-		}
-	}
+	// if r != nil {
+	// 	if err := utils.ParseAndValidateParams(r, &params); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
-	var errorStr string
-	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
-	if errorStr != "" {
-		return nil, utils.ErrMalformedRequest(errorStr)
-	}
-	params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
-	if errorStr != "" {
-		return nil, utils.ErrMalformedRequest(errorStr)
-	}
+	// params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
+	// if errorStr != "" {
+	// 	return nil, utils.ErrMalformedRequest(errorStr)
+	// }
 
 	// payload, err := utils.Str2Bytes(params.Payload)
 	// if err != nil {

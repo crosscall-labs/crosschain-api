@@ -45,19 +45,29 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Query().Get("query") {
 	case "unsigned-message":
 		response, err = UnsignedRequest(r)
+		HandleResponse(w, r, supabaseClient, response, err)
+		return
 	case "unsigned-bytecode":
 		response, err = UnsignedBytecode(r)
+		HandleResponse(w, r, supabaseClient, response, err)
+		return
 	case "signed-bytecode":
 		response, err = SignedBytecode(r)
+		HandleResponse(w, r, supabaseClient, response, err)
+		return
 	case "signed-escrow-payout":
 		// will add env restriction on origin later
 		response, err = SignedEscrowPayout(r)
+		HandleResponse(w, r, supabaseClient, response, err)
+		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))
 		return
 	}
+}
 
+func HandleResponse(w http.ResponseWriter, r *http.Request, supabaseClient *supabase.Client, response interface{}, err error) {
 	if err != nil {
 		if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
 			fmt.Printf("Failed to log error: %v\n", logErr.Error())
@@ -68,7 +78,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write successful JSON response
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
