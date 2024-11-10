@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"math/rand"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/tyler-smith/go-bip39"
@@ -148,86 +149,101 @@ func proxyWalletMessageToCell(message ProxyWalletMessage) *cell.Cell {
 	return c.EndCell()
 }
 
-func packProxyWalletData(nonce int, ownerEvmAddress int, entrypointAddress *cell.Cell) *cell.Cell {
+func packProxyWalletData(nonce uint64, entrypointAddress *address.Address, ownerEvmAddress uint64, ownerTvmAddress *address.Address) *cell.Cell {
 	c := cell.BeginCell().
-		MustStoreBigUInt(big.NewInt(int64(nonce)), 64)
-	entrypointBytes := entrypointAddress.ToBOC()
-	c.StoreSlice(entrypointBytes, uint(len(entrypointBytes)*8))
-	c.StoreUInt(uint64(ownerEvmAddress), 160)
-	c.StoreSlice([]byte{}, 0)
+		MustStoreUInt(nonce, 64).
+		MustStoreAddr(entrypointAddress).
+		MustStoreUInt(ownerEvmAddress, 160).
+		MustStoreAddr(ownerTvmAddress)
 	return c.EndCell()
 }
 
-func calculateProxyWalletStateInit(evmAddress int, entrypointAddress *cell.Cell, proxyWalletCode *cell.Dictionary) *cell.Cell {
-	c := cell.BeginCell()
-	c.StoreUInt(0, 2)
-	c.StoreDict(proxyWalletCode)
-	proxyWalletData := packProxyWalletData(0, evmAddress, entrypointAddress)
-	c.StoreDict(proxyWalletData.BeginParse().MustLoadDict(256))
-	c.StoreUInt(0, 1)
-	return c.EndCell()
+func calculateProxyWalletStateInit(evmAddress uint64, tvmAddress *address.Address, entrypointAddress *address.Address, proxyWalletCode *cell.Dictionary) *cell.Cell {
+	proxyWalletData := packProxyWalletData(0, entrypointAddress, evmAddress, tvmAddress)
+	return cell.BeginCell().
+		MustStoreUInt(0, 2).
+		MustStoreDict(proxyWalletCode).
+		MustStoreDict(proxyWalletData.BeginParse().MustLoadDict(256)).
+		MustStoreUInt(0, 1).
+		EndCell()
 }
 
-func calculate_proxy_wallet_address(state_init *cell.Cell, workchain int) *cell.Slice {
+func calculate_proxy_wallet_address(state_init *cell.Cell, workchain int) *cell.Cell {
 	hash := state_init.Hash()
 	return cell.BeginCell().
 		MustStoreUInt(4, 3).
 		MustStoreInt(int64(workchain), 8).
 		MustStoreUInt(binary.LittleEndian.Uint64(hash), 256).
-		EndCell().
-		BeginParse()
+		EndCell()
 }
 
 func entrypointMessageWithProxyInit(
-	evmAddress int,
-	entrypointAddress *cell.Cell,
+	evmAddress uint64,
+	tvmAddress *address.Address,
+	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
 	message ProxyWalletMessage,
 	workchain int,
 ) (*cell.Cell, error) {
-	stateInit := calculateProxyWalletStateInit(evmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress := calculate_proxy_wallet_address(stateInit, workchain)
+	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
+	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
+	if err != nil {
+		return nil, err
+	}
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
-	body := cell.BeginCell().
+	proxyBody := cell.BeginCell().
 		MustStoreRef(stateInit).
 		MustStoreRef(proxyWalletMsgCell).
 		EndCell()
 
-	proxyAddrBits := proxyAddress.MustLoadAddr().BitsLen()
+	entrypointBody := cell.BeginCell().
+		MustStoreAddr(proxyAddress).
+		MustStoreRef(proxyBody).
+		EndCell()
 
 	entrypointMsg := cell.BeginCell().
-		MustStoreSlice(proxyAddress.MustLoadSlice(proxyAddrBits), uint(proxyAddrBits)).
-		MustStoreRef(body).
+		MustStoreUInt(1, 32).             // op
+		MustStoreUInt(rand.Uint64(), 64). // queryId: random uint64 (we currently aren't checking for collisions)
+		MustStoreRef(entrypointBody).
 		EndCell()
 
 	return entrypointMsg, nil
 }
 
 func entrypointMessageWithoutProxyInit(
-	evmAddress int,
-	entrypointAddress *cell.Cell,
+	evmAddress uint64,
+	tvmAddress *address.Address,
+	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
 	message ProxyWalletMessage,
 	workchain int,
 ) (*cell.Cell, error) {
-	stateInit := calculateProxyWalletStateInit(evmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress := calculate_proxy_wallet_address(stateInit, workchain)
+	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
+	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
+	if err != nil {
+		return nil, err
+	}
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
-	proxyAddrBits := proxyAddress.MustLoadAddr().BitsLen()
+	entrypointBody := cell.BeginCell().
+		MustStoreAddr(proxyAddress).
+		MustStoreRef(proxyWalletMsgCell).
+		EndCell()
 
 	entrypointMsg := cell.BeginCell().
-		MustStoreSlice(proxyAddress.MustLoadSlice(proxyAddrBits), uint(proxyAddrBits)).
-		MustStoreRef(proxyWalletMsgCell).
+		MustStoreUInt(1, 32).             // op
+		MustStoreUInt(rand.Uint64(), 64). // queryId: random uint64 (we currently aren't checking for collisions)
+		MustStoreRef(entrypointBody).
 		EndCell()
 
 	return entrypointMsg, nil
 }
 
 func createEntrypointMessage(
-	evmAddress int,
-	entrypointAddress *cell.Cell,
+	evmAddress uint64,
+	tvmAddress *address.Address,
+	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
 	message ProxyWalletMessage,
 	workchain int,
@@ -236,9 +252,9 @@ func createEntrypointMessage(
 	var entrypointMessage *cell.Cell
 	var err error
 	if withProxyInit {
-		entrypointMessage, err = entrypointMessageWithProxyInit(evmAddress, entrypointAddress, proxyWalletCode, message, workchain)
+		entrypointMessage, err = entrypointMessageWithProxyInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode, message, workchain)
 	} else {
-		entrypointMessage, err = entrypointMessageWithoutProxyInit(evmAddress, entrypointAddress, proxyWalletCode, message, workchain)
+		entrypointMessage, err = entrypointMessageWithoutProxyInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode, message, workchain)
 	}
 
 	if err != nil {
@@ -348,6 +364,20 @@ func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
 // 	Body        *cell.Cell
 // }
 
+type ExecutionDataRaw struct {
+	Regime      string `query:"exe-regime" optional:"true"`
+	Destination string `query:"exe-target" optional:"true"`
+	Value       string `query:"exe-value" optional:"true"`
+	Body        string `query:"exe-body" optional:"true"`
+}
+
+type ProxyParams struct {
+	WithProxyInit   string `query:"p-init"`        // Required: Initalize the proxy wallet
+	EvmAddress      string `query:"p-evm-address"` // Required
+	ProxyWalletCode string `query:"p-wallet-code" optional:"true"`
+	WorkChain       string `query:"p-workchain" optional:"true"`
+}
+
 // func entrypointMessageWithProxyInit(
 // evmAddress int,
 // entrypointAddress *cell.Cell,
@@ -367,9 +397,12 @@ type MessageEscrowTvm struct {
 	EscrowValue     string `json:"evalue"`
 }
 
+// need to make the input message for the entrypoint tx now
+
 type UnsignedEntryPointRequestParams struct {
-	Header    utils.MessageHeader `query:"header"`
-	ProxyData string              `query:"payload" optional:"true"`
+	Header              utils.MessageHeader `query:"header"`
+	ExecutionDataParams ExecutionDataRaw    `query:"payload"`
+	ProxyParams         string              `query:"proxy"`
 }
 
 type EntrypointMessageParams struct {
@@ -390,11 +423,11 @@ type UnsignedEscrowRequestParams struct {
 	Escrow EscrowLockParams    `query:"escrow"`
 }
 
-type UnsignedEntryPointRequestParams struct {
-	Header       utils.MessageHeader `query:"header"`
-	ProxyInit    ProxyInitParams     `query:"proxy-wallet"`
-	ProxyMessage ProxyMessageRaw     `query:"msg" optional:"true"`
-} // might not need init, investigating calculation of target proxy
+// type UnsignedEntryPointRequestParams struct {
+// 	Header       utils.MessageHeader `query:"header"`
+// 	ProxyInit    ProxyInitParams     `query:"proxy-wallet"`
+// 	ProxyMessage ProxyMessageRaw     `query:"msg" optional:"true"`
+// }
 
 type ProxyInitParams struct {
 	Nonce           string `query:"nonce" optional:"true"`
