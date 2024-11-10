@@ -339,53 +339,6 @@ func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
 // 	return false, nil
 // }
 
-// the proxy wallet is essentially data loaded from a storage contract onto the main proxy contract
-// func GenerateTestTvmOperation() PackedUserOperation {
-// 	return PackedUserOperation{
-// 		InitCode: []byte{}, // fkin garabage we need to initialize seperately
-// 		// this means I literally need to rewrite our func contracts, fk fkkity fk
-// 		Sender:             common.Address{},
-// 		Nonce:              big.NewInt(0),
-// 		InitCode:           []byte{},
-// 		CallData:           []byte{},
-// 		AccountGasLimits:   [32]byte{},
-// 		PreVerificationGas: big.NewInt(20000000),
-// 		GasFees:            [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// 		PaymasterAndData:   []byte{},
-// 		Signature:          []byte{},
-// 	}
-// }
-
-// need rts/lts on ton via
-// type ExecutionData struct {
-// 	Regime      bool
-// 	Destination string
-// 	Value       *big.Int
-// 	Body        *cell.Cell
-// }
-
-type ExecutionDataRaw struct {
-	Regime      string `query:"exe-regime" optional:"true"`
-	Destination string `query:"exe-target" optional:"true"`
-	Value       string `query:"exe-value" optional:"true"`
-	Body        string `query:"exe-body" optional:"true"`
-}
-
-type ProxyParams struct {
-	WithProxyInit   string `query:"p-init"`        // Required: Initalize the proxy wallet
-	EvmAddress      string `query:"p-evm-address"` // Required
-	ProxyWalletCode string `query:"p-wallet-code" optional:"true"`
-	WorkChain       string `query:"p-workchain" optional:"true"`
-}
-
-// func entrypointMessageWithProxyInit(
-// evmAddress int,
-// entrypointAddress *cell.Cell,
-// proxyWalletCode *cell.Dictionary,
-// message ProxyWalletMessage,
-// workchain int,
-// withProxyInit bool,
-
 // both need to be fixed
 type MessageEscrowTvm struct {
 	EscrowAddress   string `json:"eaddress"`
@@ -397,25 +350,10 @@ type MessageEscrowTvm struct {
 	EscrowValue     string `json:"evalue"`
 }
 
-// need to make the input message for the entrypoint tx now
-
-type UnsignedEntryPointRequestParams struct {
-	Header              utils.MessageHeader `query:"header"`
-	ExecutionDataParams ExecutionDataRaw    `query:"payload"`
-	ProxyParams         string              `query:"proxy"`
-}
-
 type EntrypointMessageParams struct {
 	EvmAddress        string `query:"pw-evm-address"`
 	EntrypointAddress string `query:"pw-entrypoint"`
 	ProxyWalletCode   string `query:"pw-code"`
-}
-
-type MessageOpTvm struct {
-	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
-	PaymasterAndData PaymasterAndDataResponse    `json:"op-paymaster"`
-	UserOpHash       string                      `json:"op-hash"`
-	PriceGwei        string                      `json:"op-price"`
 }
 
 type UnsignedEscrowRequestParams struct {
@@ -423,23 +361,46 @@ type UnsignedEscrowRequestParams struct {
 	Escrow EscrowLockParams    `query:"escrow"`
 }
 
-// type UnsignedEntryPointRequestParams struct {
-// 	Header       utils.MessageHeader `query:"header"`
-// 	ProxyInit    ProxyInitParams     `query:"proxy-wallet"`
-// 	ProxyMessage ProxyMessageRaw     `query:"msg" optional:"true"`
-// }
-
-type ProxyInitParams struct {
-	Nonce           string `query:"nonce" optional:"true"`
-	EntryPoint      string `query:"entrypoint" optional:"true"` // we need to dtermine this or fetch from the backend
-	PayeeAddress    string `query:"payee-address" optional:"true"`
-	OwnerEvmAddress string `query:"evm-address"`
-	OwnerTvmAddress string `query:"tvm-address" optional:"true"`
+// Start of UnsignedEntryPointRequestParams
+type UnsignedEntryPointRequestParams struct {
+	Header      utils.MessageHeader `query:"header"`
+	ProxyParams ProxyParams         `query:"proxy"`
 }
 
-type ProxyInitResponse struct {
+type ProxyParams struct {
+	ProxyHeader     ProxyHeaderParams   `query:"p-header"`
+	ExecutionData   ExecutionDataParams `query:"p-exe"`
+	WithProxyInit   string              `query:"p-init"` // Required: Initalize the proxy wallet
+	ProxyWalletCode string              `query:"p-code" optional:"true"`
+	WorkChain       string              `query:"p-workchain" optional:"true"` // assume 0 for testnet atm
 }
 
+type ProxyHeaderParams struct {
+	Nonce           string `query:"p-nonce" optional:"true"`
+	EntryPoint      string `query:"p-entrypoint" optional:"true"` // possible that a better one is accepted in the future
+	PayeeAddress    string `query:"p-payee" optional:"true"`      // solver is us for now
+	OwnerEvmAddress string `query:"p-evm"`                        // easy to derive
+	OwnerTvmAddress string `query:"p-tvm" optional:"true"`        // our social login SHOULD generate this
+}
+
+type ExecutionDataParams struct {
+	Regime      string `query:"exe-regime" optional:"true"`
+	Destination string `query:"exe-target" optional:"true"`
+	Value       string `query:"exe-value" optional:"true"`
+	Body        string `query:"exe-body" optional:"true"`
+}
+
+// UnsignedEntryPointRequestResponse:
+type MessageOpTvm struct {
+	Header      utils.MessageHeader `json:"header"`
+	ProxyParams ProxyParams         `json:"proxy"`
+	ValueNano   string              `json:"value"`
+	MessageHash string              `json:"hash"`
+}
+
+// End of UnsignedEntryPointRequestParams
+
+// NEED to create the escrow payload
 type EscrowLockParams struct {
 	SignerAddress string `query:"signer-address"`
 	AdminAddress  string `query:"admin-address" optional:"true"`
@@ -504,3 +465,7 @@ type MessageHeader struct {
 	ToChainSigner   string `query:"tsigner"`
 }
 */
+
+func (m MessageOpTvm) GetType() string {
+	return "EVM UserOp"
+}

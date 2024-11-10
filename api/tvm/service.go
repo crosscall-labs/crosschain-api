@@ -2,14 +2,12 @@ package tvmHandler
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -24,14 +22,6 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 	if err != nil {
 		return nil, nil, nil, utils.ErrInternal(fmt.Sprintf("FromSeed err: %s", err.Error()))
 	}
-
-	externalMessage := &tlb.ExternalMessage{
-		DstAddr: entryPointAddress,
-		Body:    finalCell,
-	}
-	boc := externalMessage.Payload().ToBOC()
-	base64Boc := base64.StdEncoding.EncodeToString(boc)
-	// we also want to somehow estimate the gas cost
 
 	return ctx, api, backendWallet, nil
 }
