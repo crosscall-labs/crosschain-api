@@ -186,10 +186,7 @@ func entrypointMessageWithProxyInit(
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
-	if err != nil {
-		return nil, err
-	}
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
 	proxyBody := cell.BeginCell().
@@ -220,10 +217,7 @@ func entrypointMessageWithoutProxyInit(
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
-	if err != nil {
-		return nil, err
-	}
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
 	entrypointBody := cell.BeginCell().
@@ -324,11 +318,11 @@ func CalculateWallet(
 	tvmAddress *address.Address,
 	entrypointAddress *address.Address,
 	workchain int,
-) (*address.Address, error) {
+) (*address.Address, *cell.Cell, error) {
 	fmt.Print("\ninside of CalculateWallet\n")
 	proxyWalletCode, err := ByteArrayToCellDictionary(proxyWalletCodeBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// deserialization does not match es6
@@ -352,12 +346,12 @@ func CalculateWallet(
 	//fmt.Print("\nresult of proxyWalletCode4\n: %s", blah.Hash())
 
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
-	if err != nil {
-		return nil, err
-	}
 
-	return proxyAddress, nil
+	// func CellToAddress(bouncable bool, testnet bool, workchain uint8, cellData *cell.Cell) *address.Address {
+	// 	return address.NewAddress(FlagsToByte(bouncable, testnet), byte(int32(workchain)), cellData.Hash())
+	// }
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
+	return proxyAddress, stateInit, nil
 }
 
 // func buildMessage() {

@@ -7,25 +7,24 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-func CellToAddress(cellData *cell.Cell) (*address.Address, error) {
-	c := cellData.BeginParse()
+func CellToAddress(bouncable bool, testnet bool, workchain uint8, cellData *cell.Cell) *address.Address {
+	return address.NewAddress(FlagsToByte(bouncable, testnet), byte(int32(workchain)), cellData.Hash())
+}
 
-	flags, err := c.LoadUInt(8)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load flags: %v", err)
+func FlagsToByte(bouncable bool, testnet bool) (flags byte) {
+	// TODO check this magic...
+	flags = 0b00010001
+	if !bouncable {
+		setBit(&flags, 6)
 	}
-
-	workchain, err := c.LoadUInt(8)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load workchain ID: %v", err)
+	if testnet {
+		setBit(&flags, 7)
 	}
+	return flags
+}
 
-	addrData, err := c.LoadSlice(256)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load address data: %v", err)
-	}
-
-	return address.NewAddress(byte(flags), byte(workchain), addrData), nil
+func setBit(n *byte, pos uint) {
+	*n |= 1 << pos
 }
 
 func AddressToCell(addr *address.Address) (*cell.Cell, error) {
