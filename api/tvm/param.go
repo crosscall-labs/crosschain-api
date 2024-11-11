@@ -319,6 +319,47 @@ func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
 	return connectToClient("https://ton.org/global.config.json")
 }
 
+func CalculateWallet(
+	evmAddress uint64,
+	tvmAddress *address.Address,
+	entrypointAddress *address.Address,
+	workchain int,
+) (*address.Address, error) {
+	fmt.Print("\ninside of CalculateWallet\n")
+	proxyWalletCode, err := ByteArrayToCellDictionary(proxyWalletCodeBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// deserialization does not match es6
+	// blah, _ := cell.FromBOC(proxyWalletCodeBytes)
+	//data, _ := cell.FromBOC(proxyWalletCodeHex)
+	// data, _ := hex.DecodeString(proxyWalletCodeHex)
+	// // data2 := hex.Dump(data)
+	// tl.FromBytes(data)
+	// blah, _ := cell.FromBOC(data)
+	// blah2 := blah.ToBOC()
+	// blah3, _ := cell.FromBOC(blah2)
+	// blah4 := blah3.ToBOC()
+	// //hh := blah[0]
+	// fmt.Print("\nresult of proxyWalletCode0\n: %s", proxyWalletCodeHex)
+	// fmt.Print("\nresult of proxyWalletCode1\n: %s", hex.EncodeToString(blah2))
+	// fmt.Print("\nresult of proxyWalletCode2\n: %s", hex.EncodeToString(blah4))
+	// // gg, _ := blah.MarshalJSON()
+	// fmt.Print("\nresult of proxyWalletCode3\n: %s", hex.EncodeToString(gg))
+	// fmt.Print("\nresult of proxyWalletCode3\n: %s", hex.Dump(gg))
+
+	//fmt.Print("\nresult of proxyWalletCode4\n: %s", blah.Hash())
+
+	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
+	proxyAddress, err := CellToAddress(calculate_proxy_wallet_address(stateInit, workchain))
+	if err != nil {
+		return nil, err
+	}
+
+	return proxyAddress, nil
+}
+
 // func buildMessage() {
 // 	w := &wallet.Wallet{}
 // }
@@ -392,10 +433,11 @@ type ExecutionDataParams struct {
 
 // UnsignedEntryPointRequestResponse:
 type MessageOpTvm struct {
-	Header      utils.MessageHeader `json:"header"`
-	ProxyParams ProxyParams         `json:"proxy"`
-	ValueNano   string              `json:"value"`
-	MessageHash string              `json:"hash"`
+	Header       utils.MessageHeader `json:"header"`
+	ProxyParams  ProxyParams         `json:"proxy"`
+	ProxyAddress string              `json:"proxy-address"`
+	ValueNano    string              `json:"value"`
+	MessageHash  string              `json:"hash"`
 }
 
 // End of UnsignedEntryPointRequestParams

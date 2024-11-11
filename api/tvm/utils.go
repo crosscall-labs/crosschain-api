@@ -39,3 +39,12 @@ func AddressToCell(addr *address.Address) (*cell.Cell, error) {
 
 	return c.EndCell(), nil
 }
+
+func ByteArrayToCellDictionary(data []byte) (*cell.Dictionary, error) {
+	// Begin parsing the BOC (Bag of Cells)
+	c, err := cell.FromBOC(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert byte array to cell dictionary: %v", err)
+	}
+	return c.AsDict(256), nil
+}

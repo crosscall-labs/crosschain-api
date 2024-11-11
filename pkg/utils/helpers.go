@@ -27,10 +27,17 @@ func WriteJSONResponse(w http.ResponseWriter, r *http.Request, message string) {
 
 func ParseAndValidateParams(r *http.Request, params interface{}) error {
 	val := reflect.ValueOf(params).Elem() // Dereference the pointer to access the underlying struct
+	if val.Kind() == reflect.Ptr && !val.IsNil() {
+		val = val.Elem()
+	}
 	typ := val.Type()
 
 	missingFields := []string{}
 	allowedFields := make(map[string]struct{})
+	fmt.Print(typ)
+	fmt.Print(allowedFields)
+	fmt.Print(missingFields)
+	fmt.Printf("\nval in parse thing: %v\n", val)
 
 	fmt.Printf("\nfieldType.Type: %v", typ)
 	for i := 0; i < val.NumField(); i++ {

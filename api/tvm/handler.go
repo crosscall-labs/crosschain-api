@@ -2,11 +2,9 @@ package tvmHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/laminafinance/crosschain-api/pkg/db"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/supabase-community/supabase-go"
 )
@@ -47,15 +45,16 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 func HandleResponse(w http.ResponseWriter, r *http.Request, supabaseClient *supabase.Client, response interface{}, err error) {
 	if err != nil {
-		if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
-			fmt.Printf("Failed to log error: %v\n", logErr.Error())
-		}
+		// if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+		// 	fmt.Printf("Failed to log error: %v\n", logErr.Error())
+		// }
 
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(err)
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})

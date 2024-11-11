@@ -2,12 +2,15 @@ package tvmHandler
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -52,19 +55,59 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 }
 
 func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
-	// var params *UnsignedEntryPointRequestParams
+	var params *UnsignedEntryPointRequestParams
+	// var err error
 
-	// if len(parameters) > 0 {
-	// 	params = parameters[0]
-	// } else {
-	// 	params = &UnsignedEntryPointRequestParams{}
-	// }
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &UnsignedEntryPointRequestParams{}
+	}
 
-	// if r != nil {
-	// 	if err := utils.ParseAndValidateParams(r, &params); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	// response := MessageOpTvm{}
+
+	// response.Header = params.Header
+
+	ownerEvmAddressBytes, err := utils.HexToBytes(params.ProxyParams.ProxyHeader.OwnerEvmAddress)
+	if err != nil {
+		return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse owner evm address: %v", err.Error()))
+	}
+	ownerEvmAddress := binary.BigEndian.Uint64(ownerEvmAddressBytes)
+	fmt.Print(ownerEvmAddress)
+
+	ownerTvmAddress, err := address.ParseAddr(params.ProxyParams.ProxyHeader.OwnerTvmAddress)
+	if err != nil {
+		return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse owner tvm address: %v", err.Error()))
+	}
+	fmt.Print(ownerTvmAddress)
+
+	workChain, err := strconv.Atoi(params.ProxyParams.WorkChain)
+	if err != nil {
+		return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse workchain: %v", err.Error()))
+	}
+	fmt.Print(workChain)
+
+	/// dumps nothing
+	proxyAddress, err := CalculateWallet(ownerEvmAddress, ownerTvmAddress, entryPointAddress, workChain)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print(proxyAddress)
+
+	// response.ProxyAddress = proxyAddress.String()
+
+	// func CalculateWallet(
+	// 	evmAddress uint64,
+	// 	tvmAddress *address.Address,
+	// 	entrypointAddress *address.Address,
+	// 	workchain int,
+	// )
 
 	// params.Header.ToChainId, params.Header.ToChainType, params.Header.ToChainName, errorStr = utils.CheckChainPartialType(params.Header.ToChainId, "escrow", params.Header.TxType)
 	// if errorStr != "" {
@@ -100,7 +143,29 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	// // empty data for basic testing
 	// packedUserOperationResponse, _ := ToPackedUserOperationResponse(packedUserOperation)
 	// paymasterAndDataResponse, _ := ToPaymasterAndDataResponse(paymasterAndData)
-	return MessageOpTvm{}, nil
+	return MessageOpTvm{
+		Header: params.Header,
+		ProxyParams: ProxyParams{
+			ProxyHeader: ProxyHeaderParams{
+				Nonce:           "0",
+				EntryPoint:      entryPointAddress.Dump(),
+				PayeeAddress:    "",
+				OwnerEvmAddress: params.ProxyParams.ProxyHeader.OwnerEvmAddress,
+				OwnerTvmAddress: params.ProxyParams.ProxyHeader.OwnerTvmAddress,
+			},
+			ExecutionData: ExecutionDataParams{
+				Regime:      "",
+				Destination: "",
+				Value:       "",
+				Body:        "",
+			},
+			WithProxyInit:   "true",
+			ProxyWalletCode: "",
+			WorkChain:       params.ProxyParams.WorkChain,
+		},
+		ProxyAddress: "proxyAddress.Dump()",
+	}, nil
+	// return &MessageOpTvm{}, nil
 }
 
 // ToPackedUserOperationResponse converts a PackedUserOperation to PackedUserOperationResponse.
