@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -71,6 +72,11 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	}
 
 	var errorStr string
+	withProxyInit, err := strconv.ParseBool(params.ProxyParams.WithProxyInit)
+	if err != nil {
+		return nil, err
+	}
+
 	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
 		return nil, utils.ErrMalformedRequest(errorStr)
@@ -101,6 +107,23 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		return nil, err
 	}
 
+	messageHash, err := ExecutionDataHash(ExecutionDataParams{
+		Regime:      "0",
+		Destination: params.ProxyParams.ExecutionData.Destination,
+		Value:       params.ProxyParams.ExecutionData.Value,
+		Body:        params.ProxyParams.ExecutionData.Body,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	value, _ := strconv.Atoi(params.ProxyParams.ExecutionData.Value)
+	if withProxyInit {
+		value += 100000000 + 100000000
+	} else {
+		value += 100000000
+	}
+
 	fmt.Print(params.Header)
 	return MessageOpTvm{
 		Header: params.Header,
@@ -123,8 +146,8 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 			WorkChain:       params.ProxyParams.WorkChain,
 		},
 		ProxyAddress: proxyAddress.String(),
-		ValueNano:    "100000000", // default to 0.1 ton
-		MessageHash:  "",
+		ValueNano:    big.NewInt(int64(value)).String(), // default to 0.1 ton
+		MessageHash:  hex.EncodeToString(messageHash),
 	}, nil
 }
 

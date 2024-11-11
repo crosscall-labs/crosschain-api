@@ -6,6 +6,7 @@
 - [ ] ci/cd test (github) (kinda already done with vercel but need action tests)
 - [x] modulate project
 - [ ] setup compiled contract code else where to fetch, rather than update manually
+- [ ] deserialization does not match es16 decoding
 
 ### random chores (low priority)
 
@@ -16,3 +17,47 @@
 - [ ] need to add documentation to tonx-go api
 - [ ] inquire TonX team as to the missing docs for ton_tryLocateResultTx
 - [ ] finish creating TonX api response structs
+- [ ] create non-must ton functions for better error handling
+
+
+type UnsignedEntryPointRequestParams struct {
+	Header      utils.MessageHeader `query:"header"`
+	ProxyParams ProxyParams         `query:"proxy"`
+}
+
+type ProxyParams struct {
+	ProxyHeader     ProxyHeaderParams   `query:"p-header"`
+	ExecutionData   ExecutionDataParams `query:"p-exe"`
+	WithProxyInit   string              `query:"p-init"` // Required: Initalize the proxy wallet
+	ProxyWalletCode string              `query:"p-code" optional:"true"`
+	WorkChain       string              `query:"p-workchain" optional:"true"` // assume 0 for testnet atm
+}
+
+type ProxyHeaderParams struct {
+	Nonce           string `query:"p-nonce" optional:"true"`
+	EntryPoint      string `query:"p-entrypoint" optional:"true"` // possible that a better one is accepted in the future
+	PayeeAddress    string `query:"p-payee" optional:"true"`      // solver is us for now
+	OwnerEvmAddress string `query:"p-evm"`                        // easy to derive
+	OwnerTvmAddress string `query:"p-tvm" optional:"true"`        // our social login SHOULD generate this
+}
+
+type ExecutionDataParams struct {
+	Regime      string `query:"exe-regime" optional:"true"`
+	Destination string `query:"exe-target" optional:"true"`
+	Value       string `query:"exe-value" optional:"true"`
+	Body        string `query:"exe-body" optional:"true"`
+}
+
+type MessageHeader struct {
+	TxType          string `query:"txtype"`                // for now just type1 tx and type0 (legacy)
+	FromChainName   string `query:"fname" optional:"true"` // add later for QoL
+	FromChainType   string `query:"ftype" optional:"true"` // add later for QoL
+	FromChainId     string `query:"fid"`
+	FromChainSigner string `query:"fsigner"`
+	ToChainName     string `query:"tname" optional:"true"` // add later for QoL
+	ToChainType     string `query:"ttype" optional:"true"` // add later for QoL
+	ToChainId       string `query:"tid"`
+	ToChainSigner   string `query:"tsigner"`
+}
+
+http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=12345&fsigner=1234567890&tid=67890&tsigner=1234567890&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf

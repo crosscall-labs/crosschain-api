@@ -5,9 +5,11 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strconv"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/tyler-smith/go-bip39"
@@ -96,25 +98,101 @@ func signatureToCell(signature Signature) (*cell.Cell, error) {
 	return c.EndCell(), nil
 }
 
+// type ExecutionData struct {
+// 	Regime      bool
+// 	Destination string
+// 	Value       *big.Int
+// 	Body        *cell.Cell
+// }
+
+// func executionDataToCell(data ExecutionData) *cell.Cell {
+// 	destAddr := address.MustParseRawAddr(data.Destination)
+// 	c := cell.BeginCell().
+// 		MustStoreBoolBit(data.Regime).
+// 		MustStoreAddr(destAddr).
+// 		MustStoreBigCoins(data.Value)
+
+// 	if data.Body != nil {
+// 		c.MustStoreRef(data.Body)
+// 	}
+
+// 	return c.EndCell()
+// }
+
+// export function signMessageDataEth(privateKey: string | bigint, messageData: ExecutionData): Signature {
+// 	let slice = beginCell()
+// 							.storeUint(messageData.regime, 1) // 1 bit
+// 							.storeAddress(messageData.destination) // 267 bits
+// 							.storeCoins(messageData.value) // 124 bits
+// 							.storeRef(messageData.body)  // 0 bits
+// 					.asSlice();
+// 	const messageDataBuffer = packSliceToBuffer(slice)
+// 	const signature = signDataEth(privateKey, messageDataBuffer);
+// 	return signature;
+// }
+
 type ExecutionData struct {
-	Regime      bool
-	Destination string
-	Value       *big.Int
-	Body        *cell.Cell
+	Regime      byte             `json:"regime"`
+	Destination *address.Address `json:"target"`
+	Value       uint64           `json:"value"`
+	Body        *cell.Cell       `json:"body"`
 }
 
-func executionDataToCell(data ExecutionData) *cell.Cell {
-	destAddr := address.MustParseRawAddr(data.Destination)
-	c := cell.BeginCell().
-		MustStoreBoolBit(data.Regime).
-		MustStoreAddr(destAddr).
-		MustStoreBigCoins(data.Value)
-
-	if data.Body != nil {
-		c.MustStoreRef(data.Body)
+func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
+	regime, err := strconv.ParseInt(message.Regime, 16, 8)
+	if err != nil {
+		return ExecutionData{}, fmt.Errorf("regime could not be parsed: %v", err)
+	}
+	destination, err := address.ParseAddr(message.Destination)
+	if err != nil {
+		return ExecutionData{}, fmt.Errorf("destination could not be parsed: %v", err)
+	}
+	value, err := strconv.ParseInt(message.Value, 10, 64)
+	if err != nil {
+		return ExecutionData{}, fmt.Errorf("value could not be parsed: %v", err)
 	}
 
+	if message.Body != "" {
+		bodyBytes, err := hex.DecodeString(message.Body)
+		if err != nil {
+			return ExecutionData{}, fmt.Errorf("body hex could not be parsed: %v", err)
+		}
+		body, err := cell.FromBOC(bodyBytes)
+		if err != nil {
+			return ExecutionData{}, fmt.Errorf("body cell could not be parsed: %v", err)
+		}
+		return ExecutionData{
+			Regime:      byte(uint8(regime)),
+			Destination: destination,
+			Value:       uint64(value),
+			Body:        body,
+		}, nil
+	} else {
+		return ExecutionData{
+			Regime:      byte(uint8(regime)),
+			Destination: destination,
+			Value:       uint64(value),
+			Body:        cell.BeginCell().EndCell(),
+		}, nil
+	}
+}
+
+func ExecutionDataToCell(message ExecutionData) *cell.Cell {
+	c := cell.BeginCell().
+		MustStoreUInt(uint64(uint8(message.Regime)), 8).
+		MustStoreAddr(message.Destination).
+		MustStoreUInt(uint64(message.Value), 64).
+		MustStoreRef(message.Body)
+
 	return c.EndCell()
+}
+
+func ExecutionDataHash(message ExecutionDataParams) ([]byte, error) {
+	executionData, err := ToExecutionData(message)
+	if err != nil {
+		return nil, err
+	}
+	return ExecutionDataToCell(executionData).Hash(), nil
 }
 
 func hashCellWithEthereumPrefix(cellData []byte) ([]byte, error) {
@@ -138,7 +216,7 @@ type ProxyWalletMessage struct {
 
 func proxyWalletMessageToCell(message ProxyWalletMessage) *cell.Cell {
 	signatureCell, _ := signatureToCell(message.Signature)
-	executionDataCell := executionDataToCell(message.Data)
+	executionDataCell := ExecutionDataToCell(message.Data)
 
 	c := cell.BeginCell().
 		MustStoreUInt(11, 32).
@@ -319,7 +397,6 @@ func CalculateWallet(
 	entrypointAddress *address.Address,
 	workchain int,
 ) (*address.Address, *cell.Cell, error) {
-	fmt.Print("\ninside of CalculateWallet\n")
 	proxyWalletCode, err := ByteArrayToCellDictionary(proxyWalletCodeBytes)
 	if err != nil {
 		return nil, nil, err
@@ -503,5 +580,9 @@ type MessageHeader struct {
 */
 
 func (m MessageOpTvm) GetType() string {
-	return "EVM UserOp"
+	return "TVM UserOp"
+}
+
+func (m MessageEscrowTvm) GetType() string {
+	return "TVM Escrow"
 }

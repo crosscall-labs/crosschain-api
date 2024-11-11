@@ -50,7 +50,7 @@ func HandleResponse(w http.ResponseWriter, r *http.Request, supabaseClient *supa
 		// }
 
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(err)
+		json.NewEncoder(w).Encode(utils.ErrInternal(err.Error()))
 		return
 	}
 

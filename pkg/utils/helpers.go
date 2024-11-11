@@ -34,10 +34,6 @@ func ParseAndValidateParams(r *http.Request, params interface{}) error {
 
 	missingFields := []string{}
 	allowedFields := make(map[string]struct{})
-	fmt.Print(typ)
-	fmt.Print(allowedFields)
-	fmt.Print(missingFields)
-	fmt.Printf("\nval in parse thing: %v\n", val)
 
 	fmt.Printf("\nfieldType.Type: %v", typ)
 	for i := 0; i < val.NumField(); i++ {
@@ -127,9 +123,7 @@ func (e Error) Error() string {
 // }
 
 func GetOrigin() string {
-	fmt.Print("\ngot here 1\n")
 	pc, _, _, ok := runtime.Caller(2)
-	fmt.Print("\ngot here 2\n")
 	if !ok {
 		return "unknown"
 	}
