@@ -37,6 +37,8 @@ type MessageHeader struct {
 	ToChainType     string `query:"ttype" optional:"true"` // add later for QoL
 	ToChainId       string `query:"tid"`
 	ToChainSigner   string `query:"tsigner"`
+	IsTestnet       string `query:"testnet" optional:"true"` // default true
+	ExtraData       string `query:"extra-data" optional:"true"`
 }
 
 type MessageHeaderResponse struct {

@@ -2,9 +2,15 @@ module github.com/laminafinance/crosschain-api
 
 go 1.21.1
 
-require github.com/ethereum/go-ethereum v1.13.14
+require (
+	github.com/ethereum/go-ethereum v1.13.14
+	github.com/supabase-community/supabase-go v0.0.4
+	github.com/tyler-smith/go-bip39 v1.1.0
+	github.com/xssnick/tonutils-go v1.10.2
+)
 
 require (
+	github.com/emer/etable v1.1.24 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20220328075252-7dd334e3daae // indirect
@@ -13,10 +19,7 @@ require (
 	github.com/supabase-community/gotrue-go v1.2.0 // indirect
 	github.com/supabase-community/postgrest-go v0.0.11 // indirect
 	github.com/supabase-community/storage-go v0.7.0 // indirect
-	github.com/supabase-community/supabase-go v0.0.4 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
-	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
-	github.com/xssnick/tonutils-go v1.10.2 // indirect
 )
 
 require (
@@ -30,7 +33,6 @@ require (
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v0.4.0 // indirect
-	github.com/forta-network/go-multicall v0.0.0-20230701154355-9467c4ddaa83
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect

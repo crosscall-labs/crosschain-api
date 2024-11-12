@@ -391,6 +391,38 @@ func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
 	return connectToClient("https://ton.org/global.config.json")
 }
 
+func loadData(src []byte, offset, size int) ([]byte, int, error) {
+	if offset < 0 || offset+size > len(src) {
+		return nil, 0, fmt.Errorf("offset and size are out of bounds")
+	}
+
+	return src[offset : offset+size], offset + size, nil
+}
+
+func bytesToUint(b []byte) (uint, error) {
+	if len(b) > 8 {
+		return 0, fmt.Errorf("byte slice too long to convert to uint")
+	}
+
+	padded := make([]byte, 8)
+	copy(padded[8-len(b):], b)
+
+	result := binary.BigEndian.Uint64(padded)
+	return uint(result), nil
+}
+
+func extractBits(b byte, start int, size int) (byte, error) {
+	if start < 0 || start >= 8 || size < 1 || size > 8 || start+size > 8 {
+		return 0, fmt.Errorf("invalid start or size, must be within byte bounds")
+	}
+
+	return b << start >> (8 - start + size) << size, nil
+}
+
+func bigByteToBool(b byte) bool {
+	return (b & 0x80) != 0
+}
+
 func CalculateWallet(
 	evmAddress uint64,
 	tvmAddress *address.Address,
@@ -403,8 +435,122 @@ func CalculateWallet(
 	}
 
 	// deserialization does not match es6
-	// blah, _ := cell.FromBOC(proxyWalletCodeBytes)
-	//data, _ := cell.FromBOC(proxyWalletCodeHex)
+	// blah, _ := cell.BeginCell().MustStoreSlice(proxyWalletCodeBytes, proxyWalletCodeBytes)
+	offset := 0
+	//var magic []byte
+	magic, _, _ := loadData(proxyWalletCodeBytes, offset, 4)
+	switch hex.EncodeToString(magic) {
+	case "68ff65f3":
+		size, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		sizeUint, _ := bytesToUint(size)
+		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		offBytesUint, _ := bytesToUint(offBytes)
+		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		cellsUint, _ := bytesToUint(cells)
+		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
+		totalCellSizeUint, _ := bytesToUint(totalCellSize)
+		index, offset, _ := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
+		cellData, offset, _ := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
+		// JS:
+		// return {
+		// 	size,
+		// 	offBytes,
+		// 	cells,
+		// 	roots,
+		// 	absent,
+		// 	totalCellSize,
+		// 	index,
+		// 	cellData,
+		// 	root: [0]
+		// };
+	case "acc3a728":
+		size, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		sizeUint, _ := bytesToUint(size)
+		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		offBytesUint, _ := bytesToUint(offBytes)
+		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		cellsUint, _ := bytesToUint(cells)
+		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
+		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
+		totalCellSizeUint, _ := bytesToUint(totalCellSize)
+		index, offset, _ := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
+		cellData, offset, _ := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
+		crc32, offset, _ := loadData(proxyWalletCodeBytes, offset, 4)
+		// JS:
+		/// TODO: need to check crc32 flag
+		// if (!(0, crc32c_1.crc32c)(src.subarray(0, src.length - 4)).equals(crc32)) {
+		// 	throw Error('Invalid CRC32C');
+		// }
+		// return {
+		// 	size,
+		// 	offBytes,
+		// 	cells,
+		// 	roots,
+		// 	absent,
+		// 	totalCellSize,
+		// 	index,
+		// 	cellData,
+		// 	root: [0]
+		// };
+	case "b5ee9c72": // 0000 0111
+		firstByte, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		hasIdx, _ := extractBits(firstByte[0], 0, 1)
+		hasCrc32c, _ := extractBits(firstByte[0], 1, 1)
+		hasCacheBits, _ := extractBits(firstByte[0], 2, 1)
+		flags, _ := extractBits(firstByte[0], 3, 2)
+		size, _ := extractBits(firstByte[0], 5, 3)
+		var root [][]byte
+		var index []byte
+
+		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
+		offBytesUint, _ := bytesToUint(offBytes)
+		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
+		cellsUint, _ := bytesToUint(cells)
+		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
+		rootsUint, _ := bytesToUint(roots)
+		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
+		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
+		totalCellSizeUint, _ := bytesToUint(totalCellSize)
+		for ; rootsUint > 0; rootsUint-- {
+			var data []byte
+			data, offset, _ = loadData(proxyWalletCodeBytes, offset, int(size))
+			root = append(root, data)
+		}
+		if bigByteToBool(hasIdx) {
+			index, offset, _ = loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
+		}
+		cellData, offset, _ = loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
+		// JS
+		// TODO: need to check crc32 flag
+		// if (hasCrc32c) {
+		// 		let crc32 = reader.loadBuffer(4);
+		// 		if (!(0, crc32c_1.crc32c)(src.subarray(0, src.length - 4)).equals(crc32)) {
+		// 				throw Error('Invalid CRC32C');
+		// 		}
+		// }
+		// return {
+		// 		size,
+		// 		offBytes,
+		// 		cells,
+		// 		roots,
+		// 		absent,
+		// 		totalCellSize,
+		// 		index,
+		// 		cellData,
+		// 		root
+		// };
+	default:
+		return nil, nil, fmt.Errorf("magic bytes not found")
+
+	}
+
+	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(data))
+	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(proxyWalletCodeBytes))
+	// fmt.Printf("\nproxyWalletCodeBytes as cel: %v\n", blah.Dump())
+	// data, _ := cell.FromBOC(proxyWalletCodeHex)
 	// data, _ := hex.DecodeString(proxyWalletCodeHex)
 	// // data2 := hex.Dump(data)
 	// tl.FromBytes(data)
@@ -412,7 +558,7 @@ func CalculateWallet(
 	// blah2 := blah.ToBOC()
 	// blah3, _ := cell.FromBOC(blah2)
 	// blah4 := blah3.ToBOC()
-	// //hh := blah[0]
+	//hh := blah[0]
 	// fmt.Print("\nresult of proxyWalletCode0\n: %s", proxyWalletCodeHex)
 	// fmt.Print("\nresult of proxyWalletCode1\n: %s", hex.EncodeToString(blah2))
 	// fmt.Print("\nresult of proxyWalletCode2\n: %s", hex.EncodeToString(blah4))
