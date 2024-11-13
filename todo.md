@@ -18,6 +18,7 @@
 - [ ] inquire TonX team as to the missing docs for ton_tryLocateResultTx
 - [ ] finish creating TonX api response structs
 - [ ] create non-must ton functions for better error handling
+- [ ] convert boc serialization/deserialization offset -> reader
 
 
 type UnsignedEntryPointRequestParams struct {

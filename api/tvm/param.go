@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -399,6 +400,14 @@ func loadData(src []byte, offset, size int) ([]byte, int, error) {
 	return src[offset : offset+size], offset + size, nil
 }
 
+func skipData(src []byte, offset, size int) (int, error) {
+	if offset < 0 || offset+size > len(src) {
+		return 0, fmt.Errorf("offset and size are out of bounds")
+	}
+
+	return offset + size, nil
+}
+
 func bytesToUint(b []byte) (uint, error) {
 	if len(b) > 8 {
 		return 0, fmt.Errorf("byte slice too long to convert to uint")
@@ -670,8 +679,77 @@ func parseBoc(src []byte) (interface{}, error) {
 	}
 }
 
+func getHashesCount(levelMask byte) byte {
+	return getHashesCountFromMask(levelMask & 7)
+}
+func getHashesCountFromMask(mask byte) byte {
+	n := byte(0)
+	for i := 0; i < 3; i++ {
+		n += (mask & 1)
+		mask = mask >> 1
+	}
+	return n + 1 // 1 repr + up to 3 higher hashes
+}
+
+func readCell(src []byte, size int) ([]byte, []byte, bool, error) {
+	offset := 0
+	// D1
+	d1, offset, _ := loadData(src, offset, 1)
+	refsCount := d1[0] % 8
+	exotic := (d1[0] & 8) != 0
+	// D2
+	d2, offset, _ := loadData(src, offset, 1)
+	dataBytesize := int(math.Ceil(float64(d2[0]) / 2.0))
+	paddingAdded := (d2[0] % 2) != 0
+	levelMask := d1[0] >> 5
+	hasHashes := (d1[0] & 16) != 0
+	const hash_bytes = 32
+	hashesSize := 0
+	if bool(hasHashes) {
+		hashesSize = int(getHashesCount(levelMask)) * hash_bytes
+	}
+	depthSize := 0
+	if bool(hasHashes) {
+		depthSize = int(getHashesCount(levelMask)) * 2
+	}
+	offset, _ = skipData(src, offset, hashesSize*1)
+	offset, _ = skipData(src, offset, depthSize*1)
+	var bits []byte
+	if dataBytesize > 0 {
+		if paddingAdded {
+
+		}
+	}
+	// Bits
+	// let bits = BitString_1.BitString.EMPTY;
+	// if (dataBytesize > 0) {
+	// 		if (paddingAdded) {
+	// 				bits = reader.loadPaddedBits(dataBytesize * 8);
+	// 		}
+	// 		else {
+	// 				bits = reader.loadBits(dataBytesize * 8);
+	// 		}
+	// }
+	// // Refs
+	// let refs = [];
+	// for (let i = 0; i < refsCount; i++) {
+	// 		refs.push(reader.loadUint(sizeBytes * 8));
+	// }
+	// // Result
+	// return {
+	// 		bits,
+	// 		refs,
+	// 		exotic
+	// };
+
+	return nil, nil, exotic, nil
+}
+
 func serializeBoc(src []byte) (*cell.Cell, error) {
 	boc, err := parseBoc(src)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse boc: %s", err.Error())
+	}
 
 	return cell.BeginCell().EndCell(), nil
 }
