@@ -32,6 +32,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = UnsignedEntryPointRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "test":
+			response, err = TestRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))

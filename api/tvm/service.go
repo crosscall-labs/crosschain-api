@@ -13,8 +13,10 @@ import (
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error) {
@@ -76,7 +78,9 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	if err != nil {
 		return nil, err
 	}
-
+	// b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202070202ce03060201200405006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b46000194f842f841c8cb1fcb1fc9ed54802016e0809000db5473e003f0830000db63ffe003f08500171db07
+	// b5ee9c7201010a01008b000114ff00f4a413f4bcf2c80b0102016202030202ce040502016e0809020120060700194f842f841c8cb1fcb1fc9ed548006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b460000db5473e003f0830000db63ffe003f0850
+	// b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202030202ce040502016e0607020120080900194f842f841c8cb1fcb1fc9ed548000db5473e003f0830000db63ffe003f0850006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b4604ebeeffe
 	params.Header.FromChainId, params.Header.FromChainType, params.Header.FromChainName, errorStr = utils.CheckChainPartialType(params.Header.FromChainId, "escrow", params.Header.TxType)
 	if errorStr != "" {
 		return nil, utils.ErrMalformedRequest(errorStr)
@@ -149,6 +153,79 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		ValueNano:    big.NewInt(int64(value)).String(), // default to 0.1 ton
 		MessageHash:  hex.EncodeToString(messageHash),
 	}, nil
+}
+
+func TestRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
+	// doesn't use params
+	// the goal is to use the counter contract code
+
+	// 1) call the deployed counter contract
+	// 2) deploy the counter contract
+	// 3) both call deploy and then verify the counter contract
+	// 4) listen to changes on the counter contract (tbd)
+
+	ctx, _, w, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+
+	countercodehex := "b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202070202ce03060201200405006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b46000194f842f841c8cb1fcb1fc9ed54802016e0809000db5473e003f0830000db63ffe003f08500171db07"
+	countercodebytes, _ := hex.DecodeString(countercodehex)
+
+	counterConfigCell := cell.BeginCell().
+		MustStoreUInt(0, 32).
+		MustStoreUInt(0, 32).
+		EndCell()
+
+	//counterCodeCell, _ := ByteArrayToCellDictionary(countercodebytes)
+	counterCodeCell, _ := cell.FromBOC(countercodebytes)
+
+	// stateInitCell := cell.BeginCell().
+	// 	MustStoreUInt(0, 2).
+	// 	MustStoreDict(counterCodeCell).
+	// 	MustStoreDict(counterConfigCell.AsDict(256)).
+	// 	MustStoreUInt(0, 1).
+	// 	EndCell()
+
+	// toaddress := calculate_contract_address(stateInitCell, 0) // so now we can calculate the address
+
+	state := &tlb.StateInit{
+		Data: counterConfigCell,
+		Code: counterCodeCell,
+	}
+
+	stateCell, _ := tlb.ToCell(state)
+	// if err != nil {
+	// 	return nil, nil, nil, err
+	// }
+
+	addr := address.NewAddress(0, 0, stateCell.Hash())
+
+	msgBody := cell.BeginCell().EndCell() // this will be the increment code
+
+	amount := tlb.MustFromTON("0.02")
+
+	// w is of type wallet
+	// determine how to calculate w
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     addr,
+			Amount:      amount,
+			Body:        msgBody,
+			StateInit:   state,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("\ntx return data: \n%v\n\ntx return block: \n%v\n", tx, block)
+
+	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
+	return nil, nil
 }
 
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&exe-body=

@@ -50,12 +50,12 @@ import (
 need to create this function in golang
 
 	slice calculate_user_proxy_wallet_address(int evm_address, slice entrypoint_address, cell proxy_wallet_code) inline {
-	  return calculate_proxy_wallet_address(calculate_proxy_wallet_state_init(evm_address, entrypoint_address, proxy_wallet_code));
+	  return calculate_contractaddress(calculate_proxy_wallet_state_init(evm_address, entrypoint_address, proxy_wallet_code));
 	}
 
 then this
 
-	slice calculate_proxy_wallet_address(cell state_init) inline {
+	slice calculate_contract_address(cell state_init) inline {
 	  return begin_cell().store_uint(4, 3)
 	                     .store_int(workchain, 8)
 	                     .store_uint(cell_hash(state_init), 256)
@@ -247,7 +247,7 @@ func calculateProxyWalletStateInit(evmAddress uint64, tvmAddress *address.Addres
 		EndCell()
 }
 
-func calculate_proxy_wallet_address(state_init *cell.Cell, workchain int) *cell.Cell {
+func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
 	hash := state_init.Hash()
 	return cell.BeginCell().
 		MustStoreUInt(4, 3).
@@ -265,7 +265,7 @@ func entrypointMessageWithProxyInit(
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
 	proxyBody := cell.BeginCell().
@@ -296,7 +296,7 @@ func entrypointMessageWithoutProxyInit(
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
-	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
 	proxyWalletMsgCell := proxyWalletMessageToCell(message)
 
 	entrypointBody := cell.BeginCell().
@@ -400,6 +400,20 @@ func loadData(src []byte, offset, size int) ([]byte, int, error) {
 	return src[offset : offset+size], offset + size, nil
 }
 
+func loadDataPadded(src []byte, offset, size int) ([]byte, int, error) {
+	if offset < 0 || offset+size > len(src) {
+		return nil, 0, fmt.Errorf("offset and size are out of bounds")
+	}
+
+	data := src[offset : offset+size]
+	end := len(data)
+	for end > 0 && data[end-1] == 0 {
+		end--
+	}
+
+	return data[:end], offset + size, nil
+}
+
 func skipData(src []byte, offset, size int) (int, error) {
 	if offset < 0 || offset+size > len(src) {
 		return 0, fmt.Errorf("offset and size are out of bounds")
@@ -444,63 +458,63 @@ type boc struct {
 	Root          [][]byte `json:"root"`
 }
 
-func parseBoc(src []byte) (interface{}, error) {
+func parseBoc(src []byte) (boc, error) {
 
 	offset := 0
 	magic, offset, err := loadData(proxyWalletCodeBytes, offset, 4)
 	var root [][]byte
 	if err != nil {
-		return nil, fmt.Errorf("magic error: %s", err.Error())
+		return boc{}, fmt.Errorf("magic error: %s", err.Error())
 	}
 	switch hex.EncodeToString(magic) {
 	case "68ff65f3":
 		size, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("size error: %s", err.Error())
+			return boc{}, fmt.Errorf("size error: %s", err.Error())
 		}
 		sizeUint, err := bytesToUint(size)
 		if err != nil {
-			return nil, fmt.Errorf("sizeUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("sizeUint error: %s", err.Error())
 		}
 		offBytes, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("offBytes error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytes error: %s", err.Error())
 		}
 		offBytesUint, err := bytesToUint(offBytes)
 		if err != nil {
-			return nil, fmt.Errorf("offBytesUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytesUint error: %s", err.Error())
 		}
 		cells, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("cells error: %s", err.Error())
+			return boc{}, fmt.Errorf("cells error: %s", err.Error())
 		}
 		cellsUint, err := bytesToUint(cells)
 		if err != nil {
-			return nil, fmt.Errorf("cellsUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellsUint error: %s", err.Error())
 		}
 		roots, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("roots error: %s", err.Error())
+			return boc{}, fmt.Errorf("roots error: %s", err.Error())
 		}
 		absent, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("absent error: %s", err.Error())
+			return boc{}, fmt.Errorf("absent error: %s", err.Error())
 		}
 		totalCellSize, offset, err := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSize error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSize error: %s", err.Error())
 		}
 		totalCellSizeUint, err := bytesToUint(totalCellSize)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
 		}
 		index, offset, err := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
 		if err != nil {
-			return nil, fmt.Errorf("index error: %s", err.Error())
+			return boc{}, fmt.Errorf("index error: %s", err.Error())
 		}
 		cellData, offset, err := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
 		if err != nil {
-			return nil, fmt.Errorf("cellData error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellData error: %s", err.Error())
 		}
 		return boc{
 			Size:          size,
@@ -516,55 +530,55 @@ func parseBoc(src []byte) (interface{}, error) {
 	case "acc3a728":
 		size, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("size error: %s", err.Error())
+			return boc{}, fmt.Errorf("size error: %s", err.Error())
 		}
 		sizeUint, err := bytesToUint(size)
 		if err != nil {
-			return nil, fmt.Errorf("sizeUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("sizeUint error: %s", err.Error())
 		}
 		offBytes, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("offBytes error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytes error: %s", err.Error())
 		}
 		offBytesUint, err := bytesToUint(offBytes)
 		if err != nil {
-			return nil, fmt.Errorf("offBytesUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytesUint error: %s", err.Error())
 		}
 		cells, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("cells error: %s", err.Error())
+			return boc{}, fmt.Errorf("cells error: %s", err.Error())
 		}
 		cellsUint, err := bytesToUint(cells)
 		if err != nil {
-			return nil, fmt.Errorf("cellsUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellsUint error: %s", err.Error())
 		}
 		roots, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("roots error: %s", err.Error())
+			return boc{}, fmt.Errorf("roots error: %s", err.Error())
 		}
 		absent, offset, err := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("absent error: %s", err.Error())
+			return boc{}, fmt.Errorf("absent error: %s", err.Error())
 		}
 		totalCellSize, offset, err := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSize error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSize error: %s", err.Error())
 		}
 		totalCellSizeUint, err := bytesToUint(totalCellSize)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
 		}
 		index, offset, err := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
 		if err != nil {
-			return nil, fmt.Errorf("index error: %s", err.Error())
+			return boc{}, fmt.Errorf("index error: %s", err.Error())
 		}
 		cellData, offset, err := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
 		if err != nil {
-			return nil, fmt.Errorf("cellData error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellData error: %s", err.Error())
 		}
 		crc32, offset, err := loadData(proxyWalletCodeBytes, offset, 4)
 		if err != nil {
-			return nil, fmt.Errorf("crc32 error: %s", err.Error())
+			return boc{}, fmt.Errorf("crc32 error: %s", err.Error())
 		}
 		fmt.Print(crc32)
 		return boc{
@@ -581,87 +595,87 @@ func parseBoc(src []byte) (interface{}, error) {
 	case "b5ee9c72":
 		firstByte, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("firstByte error: %s", err.Error())
+			return boc{}, fmt.Errorf("firstByte error: %s", err.Error())
 		}
 		hasIdx, err := extractBits(firstByte[0], 0, 1)
 		if err != nil {
-			return nil, fmt.Errorf("hasIdx error: %s", err.Error())
+			return boc{}, fmt.Errorf("hasIdx error: %s", err.Error())
 		}
 		hasCrc32c, err := extractBits(firstByte[0], 1, 1)
 		if err != nil {
-			return nil, fmt.Errorf("hasCrc32c error: %s", err.Error())
+			return boc{}, fmt.Errorf("hasCrc32c error: %s", err.Error())
 		}
 		fmt.Print(hasCrc32c)
 		hasCacheBits, err := extractBits(firstByte[0], 2, 1)
 		if err != nil {
-			return nil, fmt.Errorf("hasCacheBits error: %s", err.Error())
+			return boc{}, fmt.Errorf("hasCacheBits error: %s", err.Error())
 		}
 		fmt.Print(hasCacheBits)
 		flags, err := extractBits(firstByte[0], 3, 2)
 		if err != nil {
-			return nil, fmt.Errorf("flags error: %s", err.Error())
+			return boc{}, fmt.Errorf("flags error: %s", err.Error())
 		}
 		fmt.Print(flags)
 		size, err := extractBits(firstByte[0], 5, 3)
 		if err != nil {
-			return nil, fmt.Errorf("size error: %s", err.Error())
+			return boc{}, fmt.Errorf("size error: %s", err.Error())
 		}
 		var root [][]byte
 		var index []byte
 
 		offBytes, offset, err := loadData(proxyWalletCodeBytes, offset, 1)
 		if err != nil {
-			return nil, fmt.Errorf("offBytes error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytes error: %s", err.Error())
 		}
 		offBytesUint, err := bytesToUint(offBytes)
 		if err != nil {
-			return nil, fmt.Errorf("offBytesUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("offBytesUint error: %s", err.Error())
 		}
 		cells, offset, err := loadData(proxyWalletCodeBytes, offset, int(size)*1)
 		if err != nil {
-			return nil, fmt.Errorf("cells error: %s", err.Error())
+			return boc{}, fmt.Errorf("cells error: %s", err.Error())
 		}
 		cellsUint, err := bytesToUint(cells)
 		if err != nil {
-			return nil, fmt.Errorf("cellsUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellsUint error: %s", err.Error())
 		}
 		roots, offset, err := loadData(proxyWalletCodeBytes, offset, int(size)*1)
 		if err != nil {
-			return nil, fmt.Errorf("roots error: %s", err.Error())
+			return boc{}, fmt.Errorf("roots error: %s", err.Error())
 		}
 		rootsUint, err := bytesToUint(roots)
 		if err != nil {
-			return nil, fmt.Errorf("rootsUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("rootsUint error: %s", err.Error())
 		}
 		absent, offset, err := loadData(proxyWalletCodeBytes, offset, int(size)*1)
 		if err != nil {
-			return nil, fmt.Errorf("absent error: %s", err.Error())
+			return boc{}, fmt.Errorf("absent error: %s", err.Error())
 		}
 		totalCellSize, offset, err := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSize error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSize error: %s", err.Error())
 		}
 		totalCellSizeUint, err := bytesToUint(totalCellSize)
 		if err != nil {
-			return nil, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
+			return boc{}, fmt.Errorf("totalCellSizeUint error: %s", err.Error())
 		}
 		for ; rootsUint > 0; rootsUint-- {
 			var data []byte
 			data, offset, err = loadData(proxyWalletCodeBytes, offset, int(size))
 			if err != nil {
-				return nil, fmt.Errorf("rootsUint %v data error: %s", rootsUint, err.Error())
+				return boc{}, fmt.Errorf("rootsUint %v data error: %s", rootsUint, err.Error())
 			}
 			root = append(root, data)
 		}
 		if bigByteToBool(hasIdx) {
 			index, offset, err = loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
 			if err != nil {
-				return nil, fmt.Errorf("index error: %s", err.Error())
+				return boc{}, fmt.Errorf("index error: %s", err.Error())
 			}
 		}
 		cellData, offset, err := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
 		if err != nil {
-			return nil, fmt.Errorf("cellData error: %s", err.Error())
+			return boc{}, fmt.Errorf("cellData error: %s", err.Error())
 		}
 		return boc{
 			Size:          append([]byte{}, size),
@@ -675,7 +689,7 @@ func parseBoc(src []byte) (interface{}, error) {
 			Root:          root,
 		}, nil
 	default:
-		return nil, fmt.Errorf("magic bytes not found")
+		return boc{}, fmt.Errorf("magic bytes not found")
 	}
 }
 
@@ -691,11 +705,11 @@ func getHashesCountFromMask(mask byte) byte {
 	return n + 1 // 1 repr + up to 3 higher hashes
 }
 
-func readCell(src []byte, size int) ([]byte, []byte, bool, error) {
+func readCell(src []byte, size int) ([]byte, [][]byte, bool, error) {
 	offset := 0
 	// D1
 	d1, offset, _ := loadData(src, offset, 1)
-	refsCount := d1[0] % 8
+	refsCount := int(d1[0] % 8)
 	exotic := (d1[0] & 8) != 0
 	// D2
 	d2, offset, _ := loadData(src, offset, 1)
@@ -717,42 +731,55 @@ func readCell(src []byte, size int) ([]byte, []byte, bool, error) {
 	var bits []byte
 	if dataBytesize > 0 {
 		if paddingAdded {
-
+			bits, offset, _ = loadDataPadded(src, offset, dataBytesize)
+		} else {
+			bits, offset, _ = loadData(src, offset, dataBytesize)
 		}
 	}
-	// Bits
-	// let bits = BitString_1.BitString.EMPTY;
-	// if (dataBytesize > 0) {
-	// 		if (paddingAdded) {
-	// 				bits = reader.loadPaddedBits(dataBytesize * 8);
-	// 		}
-	// 		else {
-	// 				bits = reader.loadBits(dataBytesize * 8);
-	// 		}
-	// }
-	// // Refs
-	// let refs = [];
-	// for (let i = 0; i < refsCount; i++) {
-	// 		refs.push(reader.loadUint(sizeBytes * 8));
-	// }
-	// // Result
-	// return {
-	// 		bits,
-	// 		refs,
-	// 		exotic
-	// };
 
-	return nil, nil, exotic, nil
+	var refs [][]byte
+	var ref []byte
+	for i := 0; i < refsCount; i++ {
+		ref, offset, _ = loadData(src, offset, size)
+		refs = append(refs, ref)
+	}
+	return bits, refs, exotic, nil
 }
 
-func serializeBoc(src []byte) (*cell.Cell, error) {
-	boc, err := parseBoc(src)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse boc: %s", err.Error())
-	}
+func deserializeBoc(src []byte) (*cell.Cell, error) {
+	//var boc_ boc
+	// boc_, err := parseBoc(src)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not parse boc: %s", err.Error())
+	// }
+	// cellData := boc_.CellData
+
+	// var cells [][]byte
+	// cells_ := binary.BigEndian.Uint64(boc_.Cells)
+	// size_ := binary.BigEndian.Uint64(boc_.Size)
+
+	// offset := 0
+	// for i:=0; i<cellnum; i++ {
+	// 	cll, offset, _ = readCell(cellData, size_)
+	// }
+	// magic, offset, err := loadData(proxyWalletCodeBytes, offset, 4)
 
 	return cell.BeginCell().EndCell(), nil
 }
+
+/*
+type Cell struct {
+    special   bool
+    levelMask LevelMask
+    bitsSz    uint
+    data      []byte
+
+    hashes      []byte
+    depthLevels []uint16
+
+    refs []*Cell
+}
+*/
 
 // next parse bytes into it's own function, then
 // need to parse cellData
@@ -769,121 +796,15 @@ func CalculateWallet(
 
 	// deserialization does not match es6
 	// blah, _ := cell.BeginCell().MustStoreSlice(proxyWalletCodeBytes, proxyWalletCodeBytes)
-	offset := 0
-	//var magic []byte
-	magic, _, _ := loadData(proxyWalletCodeBytes, offset, 4)
-	switch hex.EncodeToString(magic) {
-	case "68ff65f3":
-		size, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		sizeUint, _ := bytesToUint(size)
-		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		offBytesUint, _ := bytesToUint(offBytes)
-		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		cellsUint, _ := bytesToUint(cells)
-		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
-		totalCellSizeUint, _ := bytesToUint(totalCellSize)
-		index, offset, _ := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
-		cellData, offset, _ := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
-		// JS:
-		// return {
-		// 	size,
-		// 	offBytes,
-		// 	cells,
-		// 	roots,
-		// 	absent,
-		// 	totalCellSize,
-		// 	index,
-		// 	cellData,
-		// 	root: [0]
-		// };
-	case "acc3a728":
-		size, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		sizeUint, _ := bytesToUint(size)
-		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		offBytesUint, _ := bytesToUint(offBytes)
-		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		cellsUint, _ := bytesToUint(cells)
-		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(sizeUint)*1)
-		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
-		totalCellSizeUint, _ := bytesToUint(totalCellSize)
-		index, offset, _ := loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
-		cellData, offset, _ := loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
-		crc32, offset, _ := loadData(proxyWalletCodeBytes, offset, 4)
-		// JS:
-		/// TODO: need to check crc32 flag
-		// if (!(0, crc32c_1.crc32c)(src.subarray(0, src.length - 4)).equals(crc32)) {
-		// 	throw Error('Invalid CRC32C');
-		// }
-		// return {
-		// 	size,
-		// 	offBytes,
-		// 	cells,
-		// 	roots,
-		// 	absent,
-		// 	totalCellSize,
-		// 	index,
-		// 	cellData,
-		// 	root: [0]
-		// };
-	case "b5ee9c72": // 0000 0111
-		firstByte, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		hasIdx, _ := extractBits(firstByte[0], 0, 1)
-		hasCrc32c, _ := extractBits(firstByte[0], 1, 1)
-		hasCacheBits, _ := extractBits(firstByte[0], 2, 1)
-		flags, _ := extractBits(firstByte[0], 3, 2)
-		size, _ := extractBits(firstByte[0], 5, 3)
-		var root [][]byte
-		var index []byte
 
-		offBytes, offset, _ := loadData(proxyWalletCodeBytes, offset, 1)
-		offBytesUint, _ := bytesToUint(offBytes)
-		cells, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
-		cellsUint, _ := bytesToUint(cells)
-		roots, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
-		rootsUint, _ := bytesToUint(roots)
-		absent, offset, _ := loadData(proxyWalletCodeBytes, offset, int(size)*1)
-		totalCellSize, offset, _ := loadData(proxyWalletCodeBytes, offset, int(offBytesUint)*1)
-		totalCellSizeUint, _ := bytesToUint(totalCellSize)
-		for ; rootsUint > 0; rootsUint-- {
-			var data []byte
-			data, offset, _ = loadData(proxyWalletCodeBytes, offset, int(size))
-			root = append(root, data)
-		}
-		if bigByteToBool(hasIdx) {
-			index, offset, _ = loadData(proxyWalletCodeBytes, offset, int(cellsUint)*int(offBytesUint))
-		}
-		cellData, offset, _ = loadData(proxyWalletCodeBytes, offset, int(totalCellSizeUint))
-		// JS
-		// TODO: need to check crc32 flag
-		// if (hasCrc32c) {
-		// 		let crc32 = reader.loadBuffer(4);
-		// 		if (!(0, crc32c_1.crc32c)(src.subarray(0, src.length - 4)).equals(crc32)) {
-		// 				throw Error('Invalid CRC32C');
-		// 		}
-		// }
-		// return {
-		// 		size,
-		// 		offBytes,
-		// 		cells,
-		// 		roots,
-		// 		absent,
-		// 		totalCellSize,
-		// 		index,
-		// 		cellData,
-		// 		root
-		// };
-	default:
-		return nil, nil, fmt.Errorf("magic bytes not found")
+	data, _ := cell.FromBOC(proxyWalletCodeBytes)
+	data2 := data.ToBOC()
 
-	}
-
-	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(data))
 	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(proxyWalletCodeBytes))
+	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(data2))
+	// fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", data.)
 	// fmt.Printf("\nproxyWalletCodeBytes as cel: %v\n", blah.Dump())
-	// data, _ := cell.FromBOC(proxyWalletCodeHex)
+	// data, _ := cell.FromBOC(proxyWalletCodeBytes)
 	// data, _ := hex.DecodeString(proxyWalletCodeHex)
 	// // data2 := hex.Dump(data)
 	// tl.FromBytes(data)
@@ -906,7 +827,7 @@ func CalculateWallet(
 	// func CellToAddress(bouncable bool, testnet bool, workchain uint8, cellData *cell.Cell) *address.Address {
 	// 	return address.NewAddress(FlagsToByte(bouncable, testnet), byte(int32(workchain)), cellData.Hash())
 	// }
-	proxyAddress := CellToAddress(true, true, uint8(0), calculate_proxy_wallet_address(stateInit, workchain))
+	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
 	return proxyAddress, stateInit, nil
 }
 

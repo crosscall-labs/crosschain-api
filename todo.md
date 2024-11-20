@@ -7,6 +7,10 @@
 - [x] modulate project
 - [ ] setup compiled contract code else where to fetch, rather than update manually
 - [ ] deserialization does not match es16 decoding
+	- [ ] deserialization go rewrite
+	- [ ] determine why @ton/core can not deserialize it's own toBoc buffer
+- [ ] generate tonutils contract compilation
+- [ ] deploy and increament counter contract via the backend using es16 contract compiled code
 
 ### random chores (low priority)
 
