@@ -78,6 +78,7 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	if err != nil {
 		return nil, err
 	}
+
 	// b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202070202ce03060201200405006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b46000194f842f841c8cb1fcb1fc9ed54802016e0809000db5473e003f0830000db63ffe003f08500171db07
 	// b5ee9c7201010a01008b000114ff00f4a413f4bcf2c80b0102016202030202ce040502016e0809020120060700194f842f841c8cb1fcb1fc9ed548006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b460000db5473e003f0830000db63ffe003f0850
 	// b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202030202ce040502016e0607020120080900194f842f841c8cb1fcb1fc9ed548000db5473e003f0830000db63ffe003f0850006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b4604ebeeffe
@@ -173,8 +174,8 @@ func TestRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams
 	countercodebytes, _ := hex.DecodeString(countercodehex)
 
 	counterConfigCell := cell.BeginCell().
-		MustStoreUInt(0, 32).
-		MustStoreUInt(0, 32).
+		MustStoreUInt(10, 32).
+		MustStoreUInt(10, 32).
 		EndCell()
 
 	//counterCodeCell, _ := ByteArrayToCellDictionary(countercodebytes)
@@ -225,6 +226,128 @@ func TestRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams
 	fmt.Printf("\ntx return data: \n%v\n\ntx return block: \n%v\n", tx, block)
 
 	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
+	return nil, nil
+}
+
+func Test2Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
+	// just the view function
+	ctx, api, _, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := api.CurrentMasterchainInfo(ctx)
+
+	//b, err := api.LookupBlock(ctx, -1, -0x8000000000000000, 27531166) // last init is genesis block
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY"
+	addr := address.MustParseAddr(contractAddress)
+	props, err := api.RunGetMethod(ctx, b, addr, "get_counter")
+	if err != nil {
+		return nil, err
+	}
+
+	value, _ := props.Int(0)
+
+	fmt.Printf("\nthis is the returned data from test2: \n%v\n", value)
+
+	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
+	return nil, nil
+}
+
+func Test3Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
+	// just the increment function
+	ctx, _, w, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := "EQB_aPrr_z_m11vT0Jz3EAz1G3aIS4UcZGL4dF2M0M4oJ6TV"
+	addr := address.MustParseAddr(contractAddress)
+
+	msgBody := cell.BeginCell().
+		MustStoreUInt(2122802415, 32). // having trouble converting 4byte hex to number, check how to do later
+		MustStoreUInt(69420, 64).
+		MustStoreUInt(23, 32).
+		EndCell()
+
+	amount := tlb.MustFromTON("0.01")
+
+	fmt.Print("I got this far")
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     addr,
+			Amount:      amount,
+			Body:        msgBody,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("\nthis is the returned data from test3: \ntx:\n%v\nblock:\n%v", tx, block)
+
+	return nil, nil
+}
+
+func Test4Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
+	// deploy, init, and call function in one call
+	ctx, _, w, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+
+	countercodehex := "b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202070202ce03060201200405006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b46000194f842f841c8cb1fcb1fc9ed54802016e0809000db5473e003f0830000db63ffe003f08500171db07"
+	countercodebytes, _ := hex.DecodeString(countercodehex)
+
+	counterConfigCell := cell.BeginCell().
+		MustStoreUInt(10, 32).
+		MustStoreUInt(10, 32).
+		EndCell()
+
+	//counterCodeCell, _ := ByteArrayToCellDictionary(countercodebytes)
+	counterCodeCell, _ := cell.FromBOC(countercodebytes)
+
+	state := &tlb.StateInit{
+		Data: counterConfigCell,
+		Code: counterCodeCell,
+	}
+
+	stateCell, _ := tlb.ToCell(state)
+
+	addr := address.NewAddress(0, 0, stateCell.Hash())
+
+	msgBody := cell.BeginCell().
+		MustStoreUInt(2122802415, 32). // having trouble converting 4byte hex to number, check how to do later
+		MustStoreUInt(69420, 64).
+		MustStoreUInt(23, 32).
+		EndCell()
+
+	amount := tlb.MustFromTON("0.02")
+
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     addr,
+			Amount:      amount,
+			Body:        msgBody,
+			StateInit:   state,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("\ntx return data: \n%v\n\ntx return block: \n%v\n", tx, block)
+
 	return nil, nil
 }
 

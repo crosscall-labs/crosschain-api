@@ -10,7 +10,6 @@ require (
 )
 
 require (
-	github.com/emer/etable v1.1.24 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20220328075252-7dd334e3daae // indirect

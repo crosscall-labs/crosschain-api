@@ -7,10 +7,20 @@
 - [x] modulate project
 - [ ] setup compiled contract code else where to fetch, rather than update manually
 - [ ] deserialization does not match es16 decoding
-	- [ ] deserialization go rewrite
+	- [x] deserialization go rewrite
 	- [ ] determine why @ton/core can not deserialize it's own toBoc buffer
 - [ ] generate tonutils contract compilation
 - [ ] deploy and increament counter contract via the backend using es16 contract compiled code
+- [ ] create calls to tvm
+	- [x] deploy counter
+	- [x] call counter view
+	- [x] call counter
+	- [x] deploy + call and verify
+	- [ ] call upon listen
+		- [x] generation event
+		- [ ] add new contract to db
+		- [ ] trigger listener update (edge case, what if listener is slow than block propegation)
+- [ ] ws for frontend transactions
 
 ### random chores (low priority)
 
