@@ -152,3 +152,13 @@ type TonTryLocateTx struct {
 	Destination string `json:"destination"` // Required
 	CreatedLt   int    `json:"created_lt"`  // Required
 }
+
+// method: runGetMethod
+type RunGetMethod struct {
+	Address string `json:"address"` // Required
+	Method  string `json:"method"`  // Required
+}
+
+// method: getMasterchainInfo
+type GetMasterchainInfo struct {
+}

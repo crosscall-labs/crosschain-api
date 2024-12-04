@@ -32,20 +32,24 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = UnsignedEntryPointRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
-		case "test":
+		case "test": // deploy
 			response, err = TestRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
-		case "test2":
+		case "test2": // view
 			response, err = Test2Request(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
-		case "test3":
+		case "test3": // execute
 			response, err = Test3Request(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
-		case "test4":
+		case "test4": // deploy + execute
 			response, err = Test4Request(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
+		case "test5": // tonx view
+			response, err = Test5Request(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
 		default:

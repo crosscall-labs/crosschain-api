@@ -2,15 +2,19 @@ package tvmHandler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/laminafinance/crosschain-api/pkg/tonx"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -236,12 +240,13 @@ func Test2Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 		return nil, err
 	}
 
-	b, err := api.CurrentMasterchainInfo(ctx)
+	//b, err := api.CurrentMasterchainInfo(ctx)
+	b := TestnetInfo
 
 	//b, err := api.LookupBlock(ctx, -1, -0x8000000000000000, 27531166) // last init is genesis block
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	contractAddress := "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY"
 	addr := address.MustParseAddr(contractAddress)
@@ -331,6 +336,20 @@ func Test4Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 
 	amount := tlb.MustFromTON("0.02")
 
+	myMsg := &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     addr,
+			Amount:      amount,
+			Body:        msgBody,
+			StateInit:   state,
+		},
+	}
+
+	myMsg.InternalMessage.Payload()
+
 	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
 		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
@@ -349,6 +368,86 @@ func Test4Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	fmt.Printf("\ntx return data: \n%v\n\ntx return block: \n%v\n", tx, block)
 
 	return nil, nil
+}
+
+// func GetMasterchainInfo() *tlb.BlockInfo {
+// 	return &tlb.BlockInfo {
+// 		Workchain: 0,// int32  `tl:"int"`
+// 		Shard:0,//     int64  `tl:"long"`
+// 		SeqNo:0,//     uint32 `tl:"int"`
+// 		RootHash:[]byte,//  []byte `tl:"int256"`
+// 		FileHash:[]byte,//  []byte `tl:"int256"`
+// 	}
+// }
+
+func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
+	// just the view function
+	// ctx, api, _, err := InitClient()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	url := os.Getenv("TONX_API_BASE_TESTNET_URL")
+	apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
+	jsonrpc := os.Getenv("TONX_API_JSONRPC")
+
+	response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "getMasterchainInfo", nil)
+
+	fmt.Printf("\nresponse: \n%v", response) // kinda pointless since this isn't the shard we will use but we could use it instead maybe
+
+	var parsedResponse tonx.GetMasterchainInfoResponse
+	err := json.Unmarshal([]byte(response), &parsedResponse)
+	if err != nil {
+		return nil, err
+	}
+	lastBlock := parsedResponse.Result.Last
+	b := &tlb.BlockInfo{
+		Workchain: int32(lastBlock["workchain"].(float64)), // Convert float64 to int32
+		Shard:     parseShard(lastBlock["shard"].(string)),
+		SeqNo:     uint32(lastBlock["seqno"].(float64)), // Convert float64 to uint32
+		RootHash:  decodeBase64(lastBlock["root_hash"].(string)),
+		FileHash:  decodeBase64(lastBlock["file_hash"].(string)),
+	}
+
+	fmt.Printf("\n\ntlb.blockInfo: \n%v\n\n", b)
+
+	ctx, api, _, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+	contractAddress := "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY"
+	addr := address.MustParseAddr(contractAddress)
+	props, err := api.RunGetMethod(ctx, b, addr, "get_counter")
+	if err != nil {
+		return nil, err
+	}
+
+	value, _ := props.Int(0)
+
+	fmt.Printf("\nthis is the returned data from test2: \n%v\n", value)
+	// responseBody, err := io.ReadAll(response.Body)
+	// if err != nil {
+	// 	log.Fatalf("Error reading response body: %v", err)
+	// }
+	// fmt.Printf("Response Body:\n%s\n", string(responseBody))
+
+	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
+	return nil, nil
+}
+
+func parseShard(shardStr string) int64 {
+	var shard int64
+	fmt.Sscanf(shardStr, "%x", &shard)
+	return shard
+}
+
+// Helper function to decode Base64 strings into []byte
+func decodeBase64(encoded string) []byte {
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		log.Fatalf("Error decoding Base64: %v", err)
+	}
+	return decoded
 }
 
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&exe-body=

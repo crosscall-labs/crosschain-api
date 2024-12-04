@@ -23,6 +23,7 @@ func SendTonXRequest(url, apiKey, jsonrpc string, id int, method string, params 
 	}
 
 	fullURL := fmt.Sprintf("%s/%s", url, apiKey)
+	fmt.Printf("\nrequest url: %s\n\n", fullURL)
 
 	resp, err := http.Post(fullURL, "application/json", bytes.NewBuffer(requestData))
 	if err != nil {
