@@ -17,8 +17,8 @@
 	- [x] call counter
 	- [x] deploy + call and verify
 	- [ ] tonutils-go has 1.5 sec latency, try tonx
-		- [ ] get method
-		- [ ] send method
+		- [x] get method
+		- [ ] send method (TBD since we can't yet convert msg to raw BoC)
 		- [x] static masterchain info, saves 0.25 sec 
 		- [x] masterchain tonx, required for seqno (different masterchain info, verified)
 	- [ ] call upon listen

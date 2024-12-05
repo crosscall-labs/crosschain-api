@@ -16,3 +16,15 @@ type GetMasterchainInfoResponse struct {
 	} `json:"result"`
 	ID int `json:"id"`
 }
+
+type TonRunGetMethodResponse struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Type     string      `json:"@type"`
+		GasUsed  int         `json:"gas_used"`
+		Stack    [][2]string `json:"stack"`
+		ExitCode int         `json:"exit_code"`
+		Extra    string      `json:"@extra"`
+	} `json:"result"`
+	Id int `json:"id"`
+}

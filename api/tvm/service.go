@@ -2,12 +2,10 @@ package tvmHandler
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -391,40 +389,28 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
 	jsonrpc := os.Getenv("TONX_API_JSONRPC")
 
-	response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "getMasterchainInfo", nil)
-
-	fmt.Printf("\nresponse: \n%v", response) // kinda pointless since this isn't the shard we will use but we could use it instead maybe
-
-	var parsedResponse tonx.GetMasterchainInfoResponse
-	err := json.Unmarshal([]byte(response), &parsedResponse)
-	if err != nil {
-		return nil, err
-	}
-	lastBlock := parsedResponse.Result.Last
-	b := &tlb.BlockInfo{
-		Workchain: int32(lastBlock["workchain"].(float64)), // Convert float64 to int32
-		Shard:     parseShard(lastBlock["shard"].(string)),
-		SeqNo:     uint32(lastBlock["seqno"].(float64)), // Convert float64 to uint32
-		RootHash:  decodeBase64(lastBlock["root_hash"].(string)),
-		FileHash:  decodeBase64(lastBlock["file_hash"].(string)),
+	request := tonx.TonRunGetMethod{
+		Address: "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY",
+		Method:  "get_counter",
 	}
 
-	fmt.Printf("\n\ntlb.blockInfo: \n%v\n\n", b)
-
-	ctx, api, _, err := InitClient()
-	if err != nil {
-		return nil, err
-	}
-	contractAddress := "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY"
-	addr := address.MustParseAddr(contractAddress)
-	props, err := api.RunGetMethod(ctx, b, addr, "get_counter")
-	if err != nil {
+	response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "runGetMethod", request)
+	var parsedResponse tonx.TonRunGetMethodResponse
+	if err := json.Unmarshal([]byte(response), &parsedResponse); err != nil {
+		fmt.Printf("Error parsing response: %v\n", err)
 		return nil, err
 	}
 
-	value, _ := props.Int(0)
+	// Print parsed response details
+	fmt.Printf("Parsed Response: %+v\n", parsedResponse)
+	fmt.Printf("Gas Used: %d\n", parsedResponse.Result.GasUsed)
+	fmt.Printf("Exit Code: %d\n", parsedResponse.Result.ExitCode)
+	fmt.Println("Stack Pairs:")
+	for _, pair := range parsedResponse.Result.Stack {
+		fmt.Printf("Type: %s, Value: %s\n", pair[0], pair[1])
+	}
 
-	fmt.Printf("\nthis is the returned data from test2: \n%v\n", value)
+	fmt.Printf("\nresponse: \n%v", response)
 	// responseBody, err := io.ReadAll(response.Body)
 	// if err != nil {
 	// 	log.Fatalf("Error reading response body: %v", err)
@@ -433,21 +419,6 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 
 	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
 	return nil, nil
-}
-
-func parseShard(shardStr string) int64 {
-	var shard int64
-	fmt.Sscanf(shardStr, "%x", &shard)
-	return shard
-}
-
-// Helper function to decode Base64 strings into []byte
-func decodeBase64(encoded string) []byte {
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		log.Fatalf("Error decoding Base64: %v", err)
-	}
-	return decoded
 }
 
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&exe-body=

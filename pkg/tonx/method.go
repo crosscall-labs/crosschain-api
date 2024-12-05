@@ -89,9 +89,9 @@ type TonGetConfigParam struct {
 
 // method: ton_runGetMethod
 type TonRunGetMethod struct {
-	Address string   `json:"address"` // Required: Identifier of target TON account in raw form.
-	Method  string   `json:"method"`  // Required
-	Stack   []string `json:"stack"`   // Required: Stack of execution options.
+	Address string   `json:"address"`         // Required: Identifier of target TON account in raw form.
+	Method  string   `json:"method"`          // Required
+	Stack   []string `json:"stack,omitempty"` // Stack of execution options.
 }
 
 // method: ton_estimateFee
