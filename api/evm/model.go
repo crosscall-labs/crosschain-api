@@ -13,13 +13,13 @@ type UnsignedEntryPointRequestResponse struct {
 }
 
 type MessageEscrowEvm struct {
-	EscrowAddress   string `json:"eaddress"`
-	EscrowInit      string `json:"einit"`
-	EscrowPayload   string `json:"epayload"`
-	EscrowAsset     string `json:"easset"`
-	EscrowAmount    string `json:"eamount"`
-	EscrowValueType string `json:"evaluetype"`
-	EscrowValue     string `json:"evalue"`
+	EscrowAddress string `json:"eaddress"`
+	EscrowInit    string `json:"einit"`
+	EscrowPayload string `json:"epayload"`
+	EscrowAsset   string `json:"easset"`
+	EscrowAmount  string `json:"eamount"`
+	EscrowSigType string `json:"esigtype"`
+	EscrowValue   string `json:"evalue"`
 }
 
 type MessageOpEvm struct {

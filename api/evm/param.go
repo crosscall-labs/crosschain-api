@@ -4,6 +4,7 @@ import "github.com/laminafinance/crosschain-api/pkg/utils"
 
 type UnsignedEscrowRequestParams struct {
 	Header utils.PartialHeader `query:"header"`
+	Amount string              `query:"amount"` // gwei
 }
 
 type UnsignedEntryPointRequestParams struct {

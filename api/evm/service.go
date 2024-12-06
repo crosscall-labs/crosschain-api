@@ -31,6 +31,16 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 		return nil, utils.ErrMalformedRequest(errorStr)
 	}
 
+	// 	type MessageEscrowEvm struct {
+	//     EscrowAddress   string `json:"eaddress"` // query escrow to determine
+	//     EscrowInit      string `json:"einit"` // true or calls given if excodesize
+	//     EscrowPayload   string `json:"epayload"` // calculate given transaction
+	//     EscrowAsset     string `json:"easset"` // default to address(0), assume tvm default is the same
+	//     EscrowAmount    string `json:"eamount"` // gwei or nano
+	//     EscrowValueType string `json:"evaluetype"`
+	//     EscrowValue     string `json:"evalue"` // in usd
+	// }
+
 	return MessageEscrowEvm{}, nil
 }
 
