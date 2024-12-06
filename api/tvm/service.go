@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/laminafinance/crosschain-api/pkg/tonx"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
@@ -35,27 +36,33 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 	return ctx, api, backendWallet, nil
 }
 
+// now that we have a way to execute, deploy + execute, view, we can formulate and execute the escrow request
+// the current issue is we need a way to execute the transaction on the users behalf, ie they sign
+// escrow we do not need to do this
+// buuut we need a single call for the generation a store of value in the escrow
+// to do this we re
+
 func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequestParams) (interface{}, error) {
-	// var params *UnsignedEscrowRequestParams
-	// //var err Error
+	var params *UnsignedEscrowRequestParams
+	//var err Error
 
-	// if len(parameters) > 0 {
-	// 	params = parameters[0]
-	// } else {
-	// 	params = &UnsignedEscrowRequestParams{}
-	// }
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &UnsignedEscrowRequestParams{}
+	}
 
-	// if r != nil {
-	// 	if err := utils.ParseAndValidateParams(r, &params); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
 
-	// var errorStr string
-	// params.Header.ChainId, params.Header.ChainType, params.Header.ChainName, errorStr = utils.CheckChainPartialType(params.Header.ChainId, "escrow", params.Header.TxType)
-	// if errorStr != "" {
-	// 	return nil, utils.ErrMalformedRequest(errorStr)
-	// }
+	var errorStr string
+	params.Header.ChainId, params.Header.ChainType, params.Header.ChainName, errorStr = utils.CheckChainPartialType(params.Header.ChainId, "escrow", params.Header.TxType)
+	if errorStr != "" {
+		return nil, utils.ErrMalformedRequest(errorStr)
+	}
 
 	return MessageEscrowTvm{}, nil
 }
@@ -93,15 +100,16 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		return nil, utils.ErrMalformedRequest(errorStr)
 	}
 
-	ownerEvmAddressBytes, err := utils.HexToBytes(params.ProxyParams.ProxyHeader.OwnerEvmAddress)
-	if err != nil {
-		return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse owner evm address: %v", err.Error()))
-	}
+	ownerEvmAddressBytes := eth.HexToAddress(params.ProxyParams.ProxyHeader.OwnerEvmAddress)
+	//ownerEvmAddressBytes, err := utils.HexToBytes(params.ProxyParams.ProxyHeader.OwnerEvmAddress)
+	// if err != nil {
+	// 	return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse owner evm address: %v", err.Error()))
+	// }
 
-	ownerEvmAddress := binary.BigEndian.Uint64(ownerEvmAddressBytes)
+	ownerEvmAddress := binary.BigEndian.Uint64(ownerEvmAddressBytes.Bytes())
 	ownerTvmAddress, err := address.ParseAddr(params.ProxyParams.ProxyHeader.OwnerTvmAddress)
 	if err != nil {
-		return nil, utils.ErrInternal(fmt.Sprintf("Unable to parse owner tvm address: %v", err.Error()))
+		return nil, fmt.Errorf("Unable to parse owner tvm address: %v", err.Error())
 	}
 
 	workChain, err := strconv.Atoi(params.ProxyParams.WorkChain)
@@ -115,7 +123,7 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	}
 
 	messageHash, err := ExecutionDataHash(ExecutionDataParams{
-		Regime:      "0",
+		Regime:      "0", // this will be optional eventually
 		Destination: params.ProxyParams.ExecutionData.Destination,
 		Value:       params.ProxyParams.ExecutionData.Value,
 		Body:        params.ProxyParams.ExecutionData.Body,
@@ -124,12 +132,57 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		return nil, err
 	}
 
+	// need to test cost via tonx
+	// url := os.Getenv("TONX_API_BASE_TESTNET_URL")
+	// apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
+	// jsonrpc := os.Getenv("TONX_API_JSONRPC")
+
+	// request := tonx.TonEstimateFee{
+	// 	Address: proxyAddress.String(),
+	// 	Body:    hex.EncodeToString(proxyInit.ToBOC()),
+	// }
+
+	// response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "estimateFee", request)
+	// var parsedResponse tonx.TonEstimateFeeResponse
+	// if err := json.Unmarshal([]byte(response), &parsedResponse); err != nil {
+	// 	fmt.Printf("Error parsing response: %v\n", err)
+	// 	return nil, err
+	// }
+
 	value, _ := strconv.Atoi(params.ProxyParams.ExecutionData.Value)
 	if withProxyInit {
+		// fmt.Print("\ninside of withproxyinit")
+		// url := os.Getenv("TONX_API_BASE_TESTNET_URL")
+		// apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
+		// jsonrpc := os.Getenv("TONX_API_JSONRPC")
+
+		// proxyWalletData := PackProxyWalletData(0, entryPointAddress, ownerEvmAddress, ownerTvmAddress)
+
+		// cell.BeginCell().EndCell().ToBOC()
+
+		// request := tonx.TonEstimateFee{
+		// 	Address: proxyAddress.String(),
+		// 	Body:    hex.EncodeToString(hex.EncodeToString(proxyInit.ToBOC())),
+		// 	InitCode: proxyWalletCodeHex,
+		// 	InitData: proxyWalletData,
+		// }
+
+		// response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "estimateFee", request)
+		// var parsedResponse tonx.TonEstimateFeeResponse
+		// if err := json.Unmarshal([]byte(response), &parsedResponse); err != nil {
+		// 	fmt.Printf("Error parsing response: %v\n", err)
+		// 	return nil, err
+		// }
+
+		// fmt.Printf("\nfee estimation: \n%v\n", request)
+
 		value += 100000000 + 100000000
 	} else {
 		value += 100000000
 	}
+
+	// thingy := cell.BeginCell().EndCell()
+	// fmt.Printf("cell thing\n%v\n", hex.EncodeToString(thingy.ToBOC())) //-> b5ee9c724101010100020000004cacb9cd
 
 	fmt.Print(params.Header)
 	return MessageOpTvm{
@@ -145,10 +198,20 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 			ExecutionData: ExecutionDataParams{
 				Regime:      "0",
 				Destination: params.ProxyParams.ExecutionData.Destination,
-				Value:       params.ProxyParams.ExecutionData.Value,
-				Body:        params.ProxyParams.ExecutionData.Body,
+				Value: func() string {
+					if params.ProxyParams.ExecutionData.Value == "" {
+						return "0"
+					}
+					return params.ProxyParams.ExecutionData.Value
+				}(),
+				Body: func() string {
+					if params.ProxyParams.ExecutionData.Body == "" || params.ProxyParams.ExecutionData.Body == "00" {
+						return "b5ee9c724101010100020000004cacb9cd"
+					}
+					return params.ProxyParams.ExecutionData.Body
+				}(),
 			},
-			WithProxyInit:   "true",
+			WithProxyInit:   params.ProxyParams.WithProxyInit,
 			ProxyWalletCode: hex.EncodeToString(proxyInit.ToBOC()),
 			WorkChain:       params.ProxyParams.WorkChain,
 		},
@@ -368,16 +431,6 @@ func Test4Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	return nil, nil
 }
 
-// func GetMasterchainInfo() *tlb.BlockInfo {
-// 	return &tlb.BlockInfo {
-// 		Workchain: 0,// int32  `tl:"int"`
-// 		Shard:0,//     int64  `tl:"long"`
-// 		SeqNo:0,//     uint32 `tl:"int"`
-// 		RootHash:[]byte,//  []byte `tl:"int256"`
-// 		FileHash:[]byte,//  []byte `tl:"int256"`
-// 	}
-// }
-
 func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
 	// just the view function
 	// ctx, api, _, err := InitClient()
@@ -391,7 +444,9 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 
 	request := tonx.TonRunGetMethod{
 		Address: "EQDuTkPoaFG8V6KZP0SVsaDF5nzYRxLfPn9o_9WdROMmqseY",
-		Method:  "get_counter",
+		//4CDE9B6C823D71C3F9F31A19C78EE8F9B4649370B143BEF1660B2ADDE8362F4B
+		//1234567890123456789012345678901234567890123456789012345678901234
+		Method: "get_counter",
 	}
 
 	response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "runGetMethod", request)

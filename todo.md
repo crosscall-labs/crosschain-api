@@ -10,7 +10,7 @@
 	- [x] deserialization go rewrite
 	- [ ] determine why @ton/core can not deserialize it's own toBoc buffer
 - [ ] generate tonutils contract compilation
-- [ ] deploy and increament counter contract via the backend using es16 contract compiled code
+- [x] deploy and increament counter contract via the backend using es16 contract compiled code
 - [ ] create calls to tvm
 	- [x] deploy counter
 	- [x] call counter view
@@ -27,6 +27,9 @@
 		- [ ] trigger listener update (edge case, what if listener is slow than block propegation)
 - [ ] ws for frontend transactions
 - [ ] TVM InitClient needs to be modified to input shard and workchain
+- [ ] tonx fee estimation a fee estimation in general not working for tvm
+- [x] tvm<>evm entrypoint messages
+- [ ] tvm<>evm escrow messages
 
 ### random chores (low priority)
 

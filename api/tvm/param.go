@@ -1,6 +1,7 @@
 package tvmHandler
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -148,27 +149,18 @@ func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
 	if err != nil {
 		return ExecutionData{}, fmt.Errorf("destination could not be parsed: %v", err)
 	}
-	value, err := strconv.ParseInt(message.Value, 10, 64)
+	value, err := func() (int64, error) {
+		if message.Value == "" {
+			return 0, nil
+		}
+		return strconv.ParseInt(message.Value, 10, 64)
+	}()
 	if err != nil {
 		return ExecutionData{}, fmt.Errorf("value could not be parsed: %v", err)
 	}
 
-	if message.Body != "" {
-		bodyBytes, err := hex.DecodeString(message.Body)
-		if err != nil {
-			return ExecutionData{}, fmt.Errorf("body hex could not be parsed: %v", err)
-		}
-		body, err := cell.FromBOC(bodyBytes)
-		if err != nil {
-			return ExecutionData{}, fmt.Errorf("body cell could not be parsed: %v", err)
-		}
-		return ExecutionData{
-			Regime:      byte(uint8(regime)),
-			Destination: destination,
-			Value:       uint64(value),
-			Body:        body,
-		}, nil
-	} else {
+	bodyBytes, err := hex.DecodeString(message.Body)
+	if message.Body == "" || err == nil && len(bodyBytes) > 0 && bytes.Equal(bodyBytes, make([]byte, len(bodyBytes))) {
 		return ExecutionData{
 			Regime:      byte(uint8(regime)),
 			Destination: destination,
@@ -176,6 +168,18 @@ func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
 			Body:        cell.BeginCell().EndCell(),
 		}, nil
 	}
+
+	body, err := cell.FromBOC(bodyBytes)
+	if err != nil {
+		return ExecutionData{}, fmt.Errorf("body cell could not be parsed: %v", err)
+	}
+
+	return ExecutionData{
+		Regime:      byte(uint8(regime)),
+		Destination: destination,
+		Value:       uint64(value),
+		Body:        body,
+	}, nil
 }
 
 func ExecutionDataToCell(message ExecutionData) *cell.Cell {
@@ -228,7 +232,7 @@ func proxyWalletMessageToCell(message ProxyWalletMessage) *cell.Cell {
 	return c.EndCell()
 }
 
-func packProxyWalletData(nonce uint64, entrypointAddress *address.Address, ownerEvmAddress uint64, ownerTvmAddress *address.Address) *cell.Cell {
+func PackProxyWalletData(nonce uint64, entrypointAddress *address.Address, ownerEvmAddress uint64, ownerTvmAddress *address.Address) *cell.Cell {
 	c := cell.BeginCell().
 		MustStoreUInt(nonce, 64).
 		MustStoreAddr(entrypointAddress).
@@ -238,7 +242,7 @@ func packProxyWalletData(nonce uint64, entrypointAddress *address.Address, owner
 }
 
 func calculateProxyWalletStateInit(evmAddress uint64, tvmAddress *address.Address, entrypointAddress *address.Address, proxyWalletCode *cell.Dictionary) *cell.Cell {
-	proxyWalletData := packProxyWalletData(0, entrypointAddress, evmAddress, tvmAddress)
+	proxyWalletData := PackProxyWalletData(0, entrypointAddress, evmAddress, tvmAddress)
 	return cell.BeginCell().
 		MustStoreUInt(0, 2).
 		MustStoreDict(proxyWalletCode).
@@ -802,6 +806,7 @@ func CalculateWallet(
 
 	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(proxyWalletCodeBytes))
 	fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", hex.EncodeToString(data2))
+
 	// fmt.Printf("\nproxyWalletCodeBytes as hex string: %s\n", data.)
 	// fmt.Printf("\nproxyWalletCodeBytes as cel: %v\n", blah.Dump())
 	// data, _ := cell.FromBOC(proxyWalletCodeBytes)
