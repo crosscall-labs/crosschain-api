@@ -30,6 +30,9 @@
 - [ ] tonx fee estimation a fee estimation in general not working for tvm
 - [x] tvm<>evm entrypoint messages
 - [ ] tvm<>evm escrow messages
+	- [x] evm>tvm tx flow
+- [ ] run local evm network
+- [ ] all evm selectors should be precalculated
 
 ### random chores (low priority)
 
@@ -42,6 +45,8 @@
 - [ ] finish creating TonX api response structs
 - [ ] create non-must ton functions for better error handling
 - [ ] convert boc serialization/deserialization offset -> reader
+- [ ] run local tvm network 
+- [ ] add a generic mailbox address to all chains, allows anon triggering (no owner)
 
 
 type UnsignedEntryPointRequestParams struct {
@@ -85,3 +90,5 @@ type MessageHeader struct {
 }
 
 http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=12345&fsigner=1234567890&tid=67890&tsigner=1234567890&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf
+
+http://localhost:8080/api/main?query=unsigned-message&txtype=1&fid=11155111&fsigner=0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&payload=00&target=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf

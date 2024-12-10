@@ -1,10 +1,15 @@
 package evmHandler
 
 import (
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
@@ -31,15 +36,142 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 		return nil, utils.ErrMalformedRequest(errorStr)
 	}
 
-	// 	type MessageEscrowEvm struct {
-	//     EscrowAddress   string `json:"eaddress"` // query escrow to determine
-	//     EscrowInit      string `json:"einit"` // true or calls given if excodesize
-	//     EscrowPayload   string `json:"epayload"` // calculate given transaction
-	//     EscrowAsset     string `json:"easset"` // default to address(0), assume tvm default is the same
-	//     EscrowAmount    string `json:"eamount"` // gwei or nano
-	//     EscrowValueType string `json:"evaluetype"`
-	//     EscrowValue     string `json:"evalue"` // in usd
-	// }
+	salt := common.Hex2Bytes("0x0000000000000000000000000000000000000000000000000000000000000037")
+	signer := common.HexToAddress("19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A") // should be from params
+	client, err := ethclient.Dial("https://rpc2.sepolia.org")                 // should be from inputs but ignored
+	if err != nil {
+		return nil, err
+	}
+
+	a := common.HexToAddress("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	size, err := ExtCodeSize(client, a)
+	if err != nil {
+		fmt.Printf("\ngot an error: \n%v\n", err)
+	}
+	fmt.Printf("\ncontract size: \n%v\n", size)
+
+	isInit := false
+	if size != 0 {
+		isInit = true
+	}
+
+	messageEscrowEvm := MessageEscrowEvm{}
+	extendNonce := common.Big0
+
+	assetAddress := common.HexToAddress("0000000000000000000000000000000000000000")
+	value := common.Big0
+	escrowSingletonAddress := common.HexToAddress("ea8D264dF67c9476cA80A24067c2F3CF7726aC4d")
+	escrowFactoryAddress := common.HexToAddress("d9842E241B7015ea1E1B5A90Ae20b6453ADF2723")
+	//multicallAddress := common.HexToAddress("6958206f218D8f889ECBb76B89eE9bF1CAe37715")
+
+	escrowAddressBytes, initalizerBytes, err := GetEscrowAddress(client, signer, escrowFactoryAddress, escrowSingletonAddress, salt)
+	if err != nil {
+		fmt.Printf("\ngot an error: \n%v\n", err)
+	}
+
+	parsedJSON, _ := abi.JSON(strings.NewReader(`[{
+		"type":"function",
+		"name":"getAssetInfo",
+		"inputs":[
+			{"name":"asset_","type":"address","internalType":"address"}
+		],
+		"outputs":[
+			{"name":"","type":"uint256","internalType":"uint256"},
+			{"name":"","type":"uint256","internalType":"uint256"},
+			{"name":"","type":"uint256","internalType":"uint256"}],
+		"stateMutability":"view"
+	},{
+		"type":"function",
+		"name":"depositAndLock",
+		"inputs":[
+			{"name":"asset_","type":"address","internalType":"address"},
+			{"name":"amount_","type":"uint256","internalType":"uint256"}
+		],
+		"outputs":[],
+		"stateMutability":"payable"
+	},{
+		"type":"function",
+		"name":"extendLockHash",
+		"inputs":[
+			{"name":"sec_","type":"uint256","internalType":"uint256"},
+			{"name":"asset_","type":"address","internalType":"address"}
+		],
+		"outputs":[
+			{"name":"","type":"bytes32","internalType":"bytes32"}
+		],
+		"stateMutability":"view"
+	},{
+		"type":"function",
+		"name":"extendNonce",
+		"inputs":[],
+		"outputs":[
+			{"name":"","type":"uint256","internalType":"uint256"}
+		],
+		"stateMutability":"view"
+	}
+	]`))
+
+	assetAmount := common.Big0
+	assetAmountLocked := common.Big0
+	deadline := common.Big0
+	if isInit {
+		assetAmount, assetAmountLocked, deadline, _ = GetEscrowAssetInfo(client, common.BytesToAddress(escrowAddressBytes), assetAddress)
+		fmt.Printf("output:\n%v\n%v\n%v\n%v\n%v\n", isInit, initalizerBytes, assetAmount, assetAmountLocked, deadline)
+
+		response, err := ViewFunction(client, common.BytesToAddress(escrowAddressBytes), parsedJSON, "extendNonce")
+		if err != nil {
+			return nil, fmt.Errorf("failed extendNonce call: %v\n", err)
+		}
+
+		parsedResults, err := parsedJSON.Unpack("extendNonce", response)
+		if err != nil {
+			return nil, fmt.Errorf("failed extendNonce parse: %v\n", err)
+		}
+
+		extendNonce = parsedResults[0].(*big.Int)
+	} else {
+		fmt.Printf("output:\n%v\n%v\n", isInit, hex.EncodeToString(initalizerBytes))
+	}
+
+	callData, err := GetCallBytes(parsedJSON, "depositAndLock", assetAddress, value)
+	if err != nil {
+		return nil, err
+	}
+
+	extendTime := big.NewInt(3600)
+	chainId := big.NewInt(11155111)
+
+	lockHash := EncodeAndHash(extendTime, assetAddress, extendNonce, chainId)
+
+	messageEscrowEvm.Init = EscrowInitRaw{
+		SingletonAddress: escrowSingletonAddress.Hex(),
+		FactoryAddress:   escrowFactoryAddress.Hex(),
+		Salt:             hex.EncodeToString(salt),
+		IsInitialized:    isInit,
+		EscrowAddress:    hex.EncodeToString(escrowAddressBytes),
+		Initalizer:       hex.EncodeToString(initalizerBytes),
+		Payload:          hex.EncodeToString(initalizerBytes),
+	}
+
+	messageEscrowEvm.DepositAndLock = EscrowDepositAndLockRaw{
+		AssetAddress:  assetAddress.Hex(),
+		AssetValue:    value.String(),
+		AssetAmount:   assetAmount.String(),
+		AssetLocked:   assetAmountLocked.String(),
+		AssetDeadline: deadline.String(),
+		EscrowAddress: hex.EncodeToString(escrowAddressBytes),
+		Payload:       hex.EncodeToString(callData),
+	}
+
+	messageEscrowEvm.TimeLockHash = EscrowTimeLockHashRaw{
+		ExtendTime:   extendTime.String(),
+		AssetAddress: assetAddress.Hex(),
+		ExtendNonce:  extendNonce.String(),
+		ChainId:      chainId.String(),
+		Hash:         hex.EncodeToString(lockHash),
+	}
+
+	return messageEscrowEvm, nil
 
 	return MessageEscrowEvm{}, nil
 }

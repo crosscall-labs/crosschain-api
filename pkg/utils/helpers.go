@@ -545,3 +545,24 @@ func Uint32ToString(data [4]byte) string {
 func Uint8ToString(data byte) string {
 	return fmt.Sprintf("%d", data)
 }
+
+func Bytes32PadRight(data []byte) [32]byte {
+	var result [32]byte
+	if len(data) >= 32 {
+		copy(result[:], data[:32])
+	} else {
+		copy(result[:], data)
+	}
+	return result
+}
+
+func Bytes32PadLeft(data []byte) [32]byte {
+	var result [32]byte
+	if len(data) >= 32 {
+		copy(result[:], data[:32])
+	} else {
+		start := 32 - len(data)
+		copy(result[start:], data)
+	}
+	return result
+}

@@ -12,16 +12,6 @@ type UnsignedEntryPointRequestResponse struct {
 	Payload string              `query:"payload" optional:"true"`
 }
 
-type MessageEscrowEvm struct {
-	EscrowAddress string `json:"eaddress"`
-	EscrowInit    string `json:"einit"`
-	EscrowPayload string `json:"epayload"`
-	EscrowAsset   string `json:"easset"`
-	EscrowAmount  string `json:"eamount"`
-	EscrowSigType string `json:"esigtype"`
-	EscrowValue   string `json:"evalue"`
-}
-
 type MessageOpEvm struct {
 	UserOp           PackedUserOperationResponse `json:"op-packed-data"` // parsed data, recommended to validate data
 	PaymasterAndData PaymasterAndDataResponse    `json:"op-paymaster"`
@@ -77,10 +67,73 @@ type PaymasterAndDataResponse struct {
 	AssetAmount                   string `json:"pad-asset-amount"`
 }
 
+type MessageEscrowEvm struct {
+	Init           EscrowInitRaw           `json:"init"`
+	DepositAndLock EscrowDepositAndLockRaw `json:"deposit"`
+	TimeLockHash   EscrowTimeLockHashRaw   `json:"timelock"`
+}
+
+type EscrowDepositAndLockRaw struct {
+	AssetAddress  string `json:"asset-address"`
+	AssetValue    string `json:"asset-value"`
+	AssetAmount   string `json:"asset-amount"`
+	AssetLocked   string `json:"asset-locked"`
+	AssetDeadline string `json:"asset-dealine"`
+	EscrowAddress string `json:"escrow-address"`
+	Payload       string `json:"payload"`
+}
+
+type EscrowDepositAndLock struct {
+	AssetAddress  common.Address
+	AssetAmount   *big.Int
+	EscrowAddress common.Address
+}
+
+type EscrowInitRaw struct {
+	SingletonAddress string `json:"singleton"`
+	FactoryAddress   string `json:"factory"`
+	Salt             string `json:"salt"`
+	IsInitialized    bool   `json:"is-initialized"`
+	EscrowAddress    string `json:"address"`
+	Initalizer       string `json:"initializer"`
+	Payload          string `json:"payload"`
+}
+
+type EscrowInit struct {
+	SingletonAddress common.Address
+	FactoryAddress   common.Address
+	Salt             []byte
+	IsInitialized    bool
+	EscrowAddress    common.Address
+	Initalizer       []byte
+	Payload          []byte
+}
+
+type EscrowTimeLockHashRaw struct {
+	ExtendTime   string `json:"extend-time"`
+	AssetAddress string `json:"asset-address"`
+	ExtendNonce  string `json:"extend-nonce"`
+	ChainId      string `json:"chain-id"`
+	Hash         string `json:"hash"`
+}
+
+type EscrowTimeLockHash struct {
+	ExtendTime   *big.Int
+	AssetAddress common.Address
+	ExtendNonce  *big.Int
+	ChainId      *big.Int
+	Hash         []byte
+}
+
 func (m MessageEscrowEvm) GetType() string {
 	return "EVM Escrow"
 }
 
 func (m MessageOpEvm) GetType() string {
 	return "EVM UserOp"
+}
+
+type Call struct {
+	Target   common.Address
+	CallData []byte
 }
