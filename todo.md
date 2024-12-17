@@ -33,6 +33,15 @@
 	- [x] evm>tvm tx flow
 - [ ] run local evm network
 - [ ] all evm selectors should be precalculated
+- [ ] migrate info apis to crosschain-api
+	- [ ] create spot
+	- [ ] migrate spot
+	- [ ] create user
+	- [ ] migrate user
+	- [ ] create asset
+	- [ ] migrate asset
+	- [x] create chain
+	- [ ] migrate chain
 
 ### random chores (low priority)
 
