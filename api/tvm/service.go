@@ -476,6 +476,94 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	return nil, nil
 }
 
+type AssetInfoRequestParams struct {
+	ChainId        string `query:"chainid"`
+	EvmAddress     string `query:"evm-address" optional:"true"`
+	TvmAddress     string `query:"tvm-address" optional:"true"`
+	EscrowAddress  string `query:"escrow-address" optional:"true"`
+	AccountAddress string `query:"account-address" optional:"true"`
+	AssetAddress   string `query:"asset-address" optional:"true"`
+}
+
+func getTestnetTonx() (string, string, string) {
+	url := os.Getenv("TONX_API_BASE_TESTNET_URL")
+	apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
+	jsonrpc := os.Getenv("TONX_API_JSONRPC")
+	return url, apiKey, jsonrpc
+}
+
+func AssetInfoRequest(r *http.Request, parameters ...*AssetInfoRequestParams) (interface{}, error) {
+	var params *AssetInfoRequestParams
+
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &AssetInfoRequestParams{}
+	}
+
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	// need to make the tonx query for all the relevant accounts
+	// need to make a tonx query to view function that takes inputs
+	response := &utils.AssetInfoRequestResponse{}
+
+	url, apiKey, jsonrpc := getTestnetTonx()
+	request := tonx.TonRunGetMethod{}
+
+	if params.EscrowAddress != "" {
+
+		request = tonx.TonRunGetMethod{
+			Address: params.EscrowAddress,
+			Method:  "get_balance",
+		}
+
+		unparsedResponse, err := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "runGetMethod", request)
+		if err != nil {
+			return nil, fmt.Errorf("tonx request %v failed: %v\n", request, err)
+		}
+		var parsedResponse tonx.TonRunGetMethodResponse
+		if err := json.Unmarshal([]byte(unparsedResponse), &parsedResponse); err != nil {
+			return nil, fmt.Errorf("tonx request %v parsing failed: %v\n", request, err)
+		}
+		escrowBalance := parsedResponse.Result.Stack[0][1]
+
+		// set the Escrow fields
+		// call to see if escrow exists
+		// call to check current jettons in account
+		// call contract to see amount locked
+		// call contact to see lock deadline
+		response.Escrow = struct {
+			EscrowBalance      string
+			EscrowLockBalance  string
+			EscrowLockDeadline string
+		}{
+			EscrowBalance:      escrowBalance,
+			EscrowLockBalance:  "",
+			EscrowLockDeadline: "",
+		}
+	}
+
+	if params.AccountAddress != "" {
+		// set the Account fields
+		// call to see if account exists
+		// call to check current jettons in account
+		// call contract to see amount locked
+		// we don't actually care if the address provided is the signer
+		response.Account = struct {
+			AccountBalance     string
+			AccountLockBalance string
+		}{
+			AccountBalance:     "",
+			AccountLockBalance: "",
+		}
+	}
+	return response, nil
+}
+
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&exe-body=
 
 /*

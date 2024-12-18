@@ -32,6 +32,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = UnsignedEntryPointRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "asset-info":
+			response, err = AssetInfoRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
+		// case "user-info":
+		// 	response, err = UnsignedEntryPointRequest(r)
+		// 	HandleResponse(w, r, supabaseClient, response, err)
+		// 	return
 		case "test": // deploy
 			response, err = TestRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)

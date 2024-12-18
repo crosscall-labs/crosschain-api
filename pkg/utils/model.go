@@ -61,3 +61,25 @@ type ChainInfo struct {
 	EntrypointType []int
 	Error          error
 }
+
+type AssetInfoRequestResponse struct {
+	ChainId string
+	VM      string
+	Name    string
+	Asset   struct {
+		AssetAddress     string
+		AssetSymbol      string
+		AssetDecimal     string
+		AssetTotalSupply string
+		AssetSupply      string
+	}
+	Escrow struct {
+		EscrowBalance      string
+		EscrowLockBalance  string
+		EscrowLockDeadline string
+	}
+	Account struct {
+		AccountBalance     string
+		AccountLockBalance string
+	}
+}

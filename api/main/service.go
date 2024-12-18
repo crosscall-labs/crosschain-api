@@ -119,6 +119,7 @@ func UnsignedRequest(r *http.Request) (interface{}, error) {
 			return nil, utils.ErrInternal(err.Error())
 		}
 		unsignedDataResponse.ToMessage = response.(MessageResponse)
+		//value := unsignedDataResponse.ToMessage.GetType()
 		/*
 			type ProxyParams struct {
 				ProxyHeader     ProxyHeaderParams   `query:"p-header"`
@@ -1191,7 +1192,7 @@ func GetViewCallBytes(client ethclient.Client, parsedABI abi.ABI, methodName str
 	return data, nil
 }
 
-func getMulticallViewResults(client *ethclient.Client, parsedABIs map[string]abi.ABI, chainInfo *Chain, calls []struct {
+func GetMulticallViewResults(client *ethclient.Client, parsedABIs map[string]abi.ABI, chainInfo *Chain, calls []struct {
 	contractName    string
 	contractAddress string
 	method          string
