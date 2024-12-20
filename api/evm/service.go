@@ -13,6 +13,244 @@ import (
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
+func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
+	var params *utils.AssetInfoRequestParams
+
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &utils.AssetInfoRequestParams{}
+	}
+
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	var err error
+	response := &utils.AssetInfoRequestResponse{}
+	var calls []struct {
+		contractAddress common.Address
+		abi             abi.ABI
+		method          string
+		params          interface{}
+	}
+	var results []struct {
+		Success    bool
+		ReturnData []byte
+	}
+
+	if !common.IsHexAddress(params.UserAddress) {
+		return nil, fmt.Errorf("escrow invalid Ethereum address")
+	}
+
+	userAddress := common.HexToAddress(params.EscrowAddress)
+
+	jsonrpc, _ := getChainRpc(params.ChainId)
+	client, err := ethclient.Dial(jsonrpc)
+	if err != nil {
+		return nil, fmt.Errorf("client connection failed: %v", err)
+	}
+
+	var multicallAddress common.Address ///////////////////// need to create a func to deternibne multicall
+	parsedMulticallABI, _ := abi.JSON(strings.NewReader(`[{
+			"type":"function",
+			"name":"getExtcodesize",
+			"inputs":[{"name":"address_","type":"address","internalType":"address"}],
+			"outputs":[{"name":"size_","type":"uint256","internalType":"uint256"}],
+			"stateMutability":"view"
+		},
+		{
+			"type":"function",
+			"name":"multicallView",
+			"inputs":[{
+				"name":"calls",
+				"type":"tuple[]",
+				"internalType":"struct Multicall.Call[]",
+				"components":[
+					{"name":"target","type":"address","internalType":"address"},
+					{"name":"callData","type":"bytes","internalType":"bytes"}
+			]}],
+			"outputs":[{
+				"name":"",
+				"type":"tuple[]",
+				"internalType":"struct Multicall.Result[]",
+				"components":[
+					{"name":"success","type":"bool","internalType":"bool"},
+					{"name":"returnData","type":"bytes","internalType":"bytes"}
+			]}],
+			"stateMutability":"view"
+	}]`))
+
+	assetAddress := common.HexToAddress(params.AssetAddress)
+
+	parsedErc20ABI, _ := abi.JSON(strings.NewReader(`[{
+			"type": "function"
+			"name": "name",
+			"inputs": [],
+			"outputs": [{"name":"","type":"string","internalType":"string"}],
+			"stateMutability":"view"
+		},
+  	{
+			"type": "function"
+			"name": "symbol",
+			"inputs": [],
+			"outputs": [{"name":"","type":"string","internalType":"string"}],
+			"stateMutability":"view"
+		},
+		{
+			"type": "function"
+			"name": "decimals",
+			"inputs": [],
+			"outputs": [{"name":"","type": "uint8","internalType":"uint8"}],
+			"stateMutability":"view"
+		},
+		{
+			"type": "function"
+			"name": "totalSupply",
+			"inputs": [],
+			"outputs": [{"name":"","type": "uint256","internalType":"uint256"}],
+			"stateMutability":"view"
+		},
+		{
+			"type": "function"
+			"name": "balanceOf",
+			"inputs": [{"name":"account","type": "address","internalType":"address"}],
+			"outputs": [{"name":"","type": "uint256","internalType":"uint256"}],
+			"stateMutability":"view"
+	}]`))
+
+	calls = []struct {
+		contractAddress common.Address
+		abi             abi.ABI
+		method          string
+		params          interface{}
+	}{
+		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "name", params: nil},
+		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "symbol", params: nil},
+		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "decimals", params: nil},
+		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "totalSupply", params: nil},
+		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "balanceOf", params: userAddress},
+	}
+
+	results, err = MulticallView(client, multicallAddress, calls)
+	if err != nil {
+		return nil, fmt.Errorf("multicall view failed: %v", err)
+	}
+
+	assetName, _ := parsedErc20ABI.Unpack("name", results[0].ReturnData)
+	assetSymbol, _ := parsedErc20ABI.Unpack("symbol", results[1].ReturnData)
+	assetDecimals, _ := parsedErc20ABI.Unpack("decimals", results[2].ReturnData)
+	assetTotalSupply, _ := parsedErc20ABI.Unpack("totalSupply", results[3].ReturnData)
+	userBalance, _ := parsedErc20ABI.Unpack("balanceOf", results[4].ReturnData)
+
+	response.Asset = struct {
+		Address     string `json:"address"`
+		Name        string `json:"name"`
+		Symbol      string `json:"symbol"`
+		Decimal     string `json:"decimal"`
+		TotalSupply string `json:"total-supply"`
+		Supply      string `json:"supply"`
+		Description string `json:"description"`
+	}{
+		Address:     assetAddress.Hex(),
+		Name:        assetName[0].(string),
+		Symbol:      assetSymbol[0].(string),
+		Decimal:     assetDecimals[0].(*big.Int).String(),
+		TotalSupply: assetTotalSupply[0].(*big.Int).String(),
+		Supply:      userBalance[0].(*big.Int).String(),
+		Description: "",
+	}
+
+	if params.EscrowAddress != "" {
+		if !common.IsHexAddress(params.EscrowAddress) {
+			return nil, fmt.Errorf("escrow invalid Ethereum address")
+		}
+
+		escrowAddress := common.HexToAddress(params.EscrowAddress)
+
+		parsedEscrowABI, _ := abi.JSON(strings.NewReader(`[{
+				"type":"function",
+				"name":"getAssetInfo",
+				"inputs":[
+					{"name":"asset_","type":"address","internalType":"address"}
+				],
+				"outputs":[
+					{"name":"","type":"uint256","internalType":"uint256"},
+					{"name":"","type":"uint256","internalType":"uint256"},
+					{"name":"","type":"uint256","internalType":"uint256"}],
+				"stateMutability":"view"
+		}]`))
+
+		calls = []struct {
+			contractAddress common.Address
+			abi             abi.ABI
+			method          string
+			params          interface{}
+		}{
+			{contractAddress: multicallAddress, abi: parsedMulticallABI, method: "getExtcodesize", params: escrowAddress},
+			{contractAddress: escrowAddress, abi: parsedEscrowABI, method: "getAssetInfo", params: assetAddress},
+		}
+
+		results, err = MulticallView(client, multicallAddress, calls)
+		if err != nil {
+			return nil, fmt.Errorf("multicall view failed: %v", err)
+		}
+
+		escrowSize, _ := parsedMulticallABI.Unpack("getExtcodesize", results[0].ReturnData)
+		escrowInfo, _ := parsedEscrowABI.Unpack("getAssetInfo", results[1].ReturnData)
+
+		response.Escrow = struct {
+			Init         bool   `json:"init"`
+			Balance      string `json:"balance"`
+			LockBalance  string `json:"lock-balance"`
+			LockDeadline string `json:"lock-deadline"`
+		}{
+			Init:         escrowSize[0].(*big.Int).Int64() > 0,
+			Balance:      escrowInfo[0].(*big.Int).String(),
+			LockBalance:  escrowInfo[1].(*big.Int).String(),
+			LockDeadline: escrowInfo[2].(*big.Int).String(),
+		}
+	}
+
+	if params.AccountAddress != "" {
+		if !common.IsHexAddress(params.AccountAddress) {
+			return nil, fmt.Errorf("account invalid Ethereum address")
+		}
+
+		accountAddress := common.HexToAddress(params.EscrowAddress)
+
+		calls = []struct {
+			contractAddress common.Address
+			abi             abi.ABI
+			method          string
+			params          interface{}
+		}{
+			{contractAddress: multicallAddress, abi: parsedMulticallABI, method: "getExtcodesize", params: accountAddress},
+			{contractAddress: assetAddress, abi: parsedErc20ABI, method: "balanceOf", params: accountAddress},
+		}
+
+		results, err = MulticallView(client, multicallAddress, calls)
+		if err != nil {
+			return nil, fmt.Errorf("multicall view failed: %v", err)
+		}
+
+		accountSize, _ := parsedMulticallABI.Unpack("getExtcodesize", results[0].ReturnData)
+		accountInfo, _ := parsedErc20ABI.Unpack("balanceOf", results[1].ReturnData)
+
+		response.Account = struct {
+			Init    bool   `json:"init"`
+			Balance string `json:"balance"`
+		}{
+			Init:    accountSize[0].(*big.Int).Int64() > 0,
+			Balance: accountInfo[0].(*big.Int).String(),
+		}
+	}
+
+	return response, nil
+}
+
 // It accepts an optional query parameter for internal calls.
 func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequestParams) (interface{}, error) {
 	var params *UnsignedEscrowRequestParams

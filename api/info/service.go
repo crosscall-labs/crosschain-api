@@ -1,6 +1,7 @@
 package infoHandler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/laminafinance/crosschain-api/pkg/utils"
@@ -16,36 +17,37 @@ func VersionRequest(r *http.Request, parameters ...interface{}) (interface{}, er
 // 	// migrate from sdk api
 // }
 
-func AssetInfoRequest(r *http.Request, parameters ...*interface{}) (interface{}, error) {
-	// var params *AssetInfoRequestParams
+func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
+	var params *utils.AssetInfoRequestParams
 
-	// if len(parameters) > 0 {
-	// 	params = parameters[0]
-	// } else {
-	// 	params = &AssetInfoRequestParams{}
-	// }
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &utils.AssetInfoRequestParams{}
+	}
 
-	// if r != nil {
-	// 	if err := utils.ParseAndValidateParams(r, &params); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
 
-	// chainInfo, err := utils.GetChainInfo(params.ChainId)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	var err error
+	params.ChainId, params.VM, err = getChainType(params.ChainId)
+	if err != nil {
+		return nil, err
+	}
 
-	// switch chainInfo.VM {
-	// case "evm":
-	// 	// return evmHandler.AssetInfoRequestEvm(params)
-	// case "tvm":
-	// 	// return tvmHandler.AssetInfoRequestTvm(params)
+	switch params.VM {
+	case "evm":
+		return evmHandler.AssetInfoRequest(params)
+	case "tvm":
+		// return tvmHandler.AssetInfoRequest(params)
 	// case "svm":
 	// 	// return svmHandler.AssetInfoRequestSvm(params)
-	// default:
-	// 	return nil, fmt.Errorf("Virtual machine %v is unsupported", chainInfo.VM)
-	// }
+	default:
+		return nil, fmt.Errorf("Virtual machine %v is unsupported", params.VM)
+	}
 	return nil, nil
 }
 

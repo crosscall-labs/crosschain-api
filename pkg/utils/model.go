@@ -62,24 +62,36 @@ type ChainInfo struct {
 	Error          error
 }
 
+type AssetInfoRequestParams struct {
+	ChainId        string `query:"chainid"`
+	VM             string `query:"vm" optional:"true"`
+	UserAddress    string `query:"address" optional:"true"`
+	EscrowAddress  string `query:"escrow-address" optional:"true"`
+	AccountAddress string `query:"account-address" optional:"true"`
+	AssetAddress   string `query:"asset-address" optional:"true"`
+}
+
 type AssetInfoRequestResponse struct {
-	ChainId string
-	VM      string
-	Name    string
+	ChainId string `json:"chain-id"`
+	VM      string `json:"vm"`
+	Name    string `json:"name"`
 	Asset   struct {
-		AssetAddress     string
-		AssetSymbol      string
-		AssetDecimal     string
-		AssetTotalSupply string
-		AssetSupply      string
-	}
+		Address     string `json:"address"`
+		Name        string `json:"name"`
+		Symbol      string `json:"symbol"`
+		Decimal     string `json:"decimal"`
+		TotalSupply string `json:"total-supply"`
+		Supply      string `json:"supply"`
+		Description string `json:"description"`
+	} `json:"asset"`
 	Escrow struct {
-		EscrowBalance      string
-		EscrowLockBalance  string
-		EscrowLockDeadline string
-	}
+		Init         bool   `json:"init"`
+		Balance      string `json:"balance"`
+		LockBalance  string `json:"lock-balance"`
+		LockDeadline string `json:"lock-deadline"`
+	} `json:"escrow"`
 	Account struct {
-		AccountBalance     string
-		AccountLockBalance string
-	}
+		Init    bool   `json:"init"`
+		Balance string `json:"balance"`
+	} `json:"account"`
 }

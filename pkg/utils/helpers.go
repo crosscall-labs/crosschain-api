@@ -320,56 +320,96 @@ var disabled = func(chainId string) error {
 	return ErrMalformedRequest(fmt.Sprintf("unsupported chain ID: %s", chainId))
 }
 
-var chainInfoMap = map[string]ChainInfo{
-	"0x3106A":      {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"200810":       {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"0x4268":       {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"17000":        {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"0xAA36A7":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"11155111":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"0xE34":        {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
-	"3636":         {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
-	"0xF35A":       {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"62298":        {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
-	"0x13881":      {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
-	"80001":        {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
-	"0x13882":      {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
-	"80002":        {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
-	"0xC3":         {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
-	"195":          {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
-	"0xAEF3":       {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
-	"44787":        {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
-	"0x5E9":        {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
-	"1513":         {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
-	"0x8274F":      {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
-	"534351":       {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
-	"0xAA37DC":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
-	"11155420":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
-	"0x66EEE":      {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
-	"421614":       {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
-	"0x14A34":      {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
-	"84532":        {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
-	"0x4CB2F":      {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
-	"314159":       {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
-	"0xBF03":       {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
-	"48899":        {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
-	"0x63639999":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
-	"1667471769":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
-	"0x53564D0002": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
-	"357930172418": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
-	"0x53564D0003": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
-	"357930172419": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
-	"0x53564D0004": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
-	"357930172420": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
-}
+// this will need to later be added to db
+// var chainInfoMap = map[string]struct {
+// 	Info  ChainInfo
+// 	Error error
+// }{
+// 	"0x3106A":      {Info: ChainInfo{"200810", "evm", "Bitlayer Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: nil},
+// 	"200810":       {Info: ChainInfo{"200810", "evm", "Bitlayer Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: nil},
+// 	"0x4268":       {Info: ChainInfo{"17000", "evm", "Holesky Testnet", "0000000000000000000000000000000000000000", "ETH", "18"}, Error: nil},
+// 	"17000":        {Info: ChainInfo{"17000", "evm", "Holesky Testnet", "0000000000000000000000000000000000000000", "ETH", "18"}, Error: nil},
+// 	"0xAA36A7":     {Info: ChainInfo{"11155111", "evm", "Sepolia Testnet", "0000000000000000000000000000000000000000", "ETH", "18"}, Error: nil},
+// 	"11155111":     {Info: ChainInfo{"11155111", "evm", "Sepolia Testnet", "0000000000000000000000000000000000000000", "ETH", "18"}, Error: nil},
+// 	"0xE34":        {Info: ChainInfo{"3636", "evm", "Botanix Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: disabled("3636")},
+// 	"3636":         {Info: ChainInfo{"3636", "evm", "Botanix Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: disabled("3636")},
+// 	"0xF35A":       {Info: ChainInfo{"62298", "evm", "Citrea Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: nil},
+// 	"62298":        {Info: ChainInfo{"62298", "evm", "Citrea Testnet", "0000000000000000000000000000000000000000", "BTC", "18"}, Error: nil},
+// 	"0x13881":      {Info: ChainInfo{"80001", "evm", "Matic Mumbai", "0000000000000000000000000000000000000000", "MATIC", "18"}, Error: disabled("80001")},
+// 	"80001":        {Info: ChainInfo{"80001", "evm", "Matic Mumbai", "0000000000000000000000000000000000000000", "MATIC", "18"}, Error: disabled("80001")},
+// 	"0x13882":      {Info: ChainInfo{"80002", "evm", "Matic Amoy", "0000000000000000000000000000000000000000", "MATIC", "18"}, Error: disabled("80002")},
+// 	"80002":        {Info: ChainInfo{"80002", "evm", "Matic Amoy", "0000000000000000000000000000000000000000", "MATIC", "18"}, Error: disabled("80002")},
+// 	"0x63639999":   {Info: ChainInfo{"1667471769", "tvm", "Ton Testnet", "0000000000000000000000000000000000000000", "TON", "9"}, Error: nil},
+// 	"1667471769":   {Info: ChainInfo{"1667471769", "tvm", "Ton Testnet", "0000000000000000000000000000000000000000", "TON", "9"}, Error: nil},
+// 	"0x53564D0002": {Info: ChainInfo{"357930172418", "svm", "Solana Devnet", "0000000000000000000000000000000000000000", "SOL", "9"}, Error: disabled("357930172418")},
+// 	"357930172418": {Info: ChainInfo{"357930172418", "svm", "Solana Devnet", "0000000000000000000000000000000000000000", "SOL", "18"}, Error: disabled("357930172418")},
+// 	"0x53564D0003": {Info: ChainInfo{"357930172419", "svm", "Solana Testnet", "0000000000000000000000000000000000000000", "SOL", "18"}, Error: disabled("357930172419")},
+// 	"357930172419": {Info: ChainInfo{"357930172419", "svm", "Solana Testnet", "0000000000000000000000000000000000000000", "SOL", "18"}, Error: disabled("357930172419")},
+// 	"0x53564D0004": {Info: ChainInfo{"357930172420", "svm", "Eclipse Testnet", "0000000000000000000000000000000000000000", "SOL", "18"}, Error: disabled("357930172420")},
+// 	"357930172420": {Info: ChainInfo{"357930172420", "svm", "Eclipse Testnet", "0000000000000000000000000000000000000000", "SOL", "18"}, Error: disabled("357930172420")},
+// }
 
-func CheckChainType2(chainId string) (string, string, string, []int, []int, string) {
-	if info, found := chainInfoMap[chainId]; found {
-		return info.ID, info.VM, info.Name, info.EscrowType, info.EntrypointType, ""
-	}
-	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
-	return "", "", "", nil, nil, disabled
-}
+// func GetChainInfo(chainId string) (ChainInfo, error) {
+// 	if info, found := chainInfoMap[chainId]; found {
+// 		if info.Error != nil {
+// 			return ChainInfo{}, info.Error
+// 		}
+// 		return info.Info, nil
+// 	}
+
+// 	return ChainInfo{}, fmt.Errorf("Unsupporting Chain ID: %s", chainId)
+// }
+
+// var chainInfoMap = map[string]ChainInfo{
+// 	"0x3106A":      {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"200810":       {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"0x4268":       {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"17000":        {"17000", "evm", "ethereumHoleskyTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"0xAA36A7":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"11155111":     {"11155111", "evm", "ethereumSepoliaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"0xE34":        {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+// 	"3636":         {"3636", "evm", "botanixTestnet", []int{0, 1}, []int{0, 1, 2}, disabled("3636")},
+// 	"0xF35A":       {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"62298":        {"62298", "evm", "citreaTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
+// 	"0x13881":      {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+// 	"80001":        {"80001", "evm", "maticMumbai", nil, nil, disabled("80001")},
+// 	"0x13882":      {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+// 	"80002":        {"80002", "evm", "maticAmoy", nil, nil, disabled("80002")},
+// 	"0xC3":         {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+// 	"195":          {"195", "evm", "xLayerEvmTestnet", nil, nil, disabled("195")},
+// 	"0xAEF3":       {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+// 	"44787":        {"44787", "evm", "celoAlforesTestnet", nil, nil, disabled("44787")},
+// 	"0x5E9":        {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+// 	"1513":         {"1513", "evm", "storyEvmTestnet", nil, nil, disabled("1513")},
+// 	"0x8274F":      {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+// 	"534351":       {"534351", "evm", "scrollEvmTestnet", nil, nil, disabled("534351")},
+// 	"0xAA37DC":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+// 	"11155420":     {"11155420", "evm", "optimismSepoliaTestnet", nil, nil, disabled("11155420")},
+// 	"0x66EEE":      {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+// 	"421614":       {"421614", "evm", "arbitrumSepoliaTestnet", nil, nil, disabled("421614")},
+// 	"0x14A34":      {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+// 	"84532":        {"84532", "evm", "baseSepoliaTestnet", nil, nil, disabled("84532")},
+// 	"0x4CB2F":      {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+// 	"314159":       {"314159", "evm", "filecoinEvmTestnet", nil, nil, disabled("314159")},
+// 	"0xBF03":       {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+// 	"48899":        {"48899", "evm", "zircuitTestnet", nil, nil, disabled("48899")},
+// 	"0x63639999":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+// 	"1667471769":   {"1667471769", "tvm", "tonTvmTestnet", []int{2}, []int{0, 1, 2}, nil},
+// 	"0x53564D0002": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+// 	"357930172418": {"357930172418", "svm", "solanaSvmDevnet", nil, nil, disabled("357930172418")},
+// 	"0x53564D0003": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+// 	"357930172419": {"357930172419", "svm", "solanaSvmTestnet", nil, nil, disabled("357930172419")},
+// 	"0x53564D0004": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+// 	"357930172420": {"357930172420", "svm", "eclipseSvmTestnet", nil, nil, disabled("357930172420")},
+// }
+
+// func CheckChainType2(chainId string) (string, string, string, []int, []int, string) {
+// 	if info, found := chainInfoMap[chainId]; found {
+// 		return info.ID, info.VM, info.Name, info.EscrowType, info.EntrypointType, ""
+// 	}
+// 	disabled := fmt.Sprintf("unsupported chain ID: %s", chainId)
+// 	return "", "", "", nil, nil, disabled
+// }
 
 var chainClientMap = map[string]ChainInfo{
 	"0x3106A":      {"200810", "evm", "bitlayerTestnet", []int{0, 1}, []int{0, 1, 2}, nil},
