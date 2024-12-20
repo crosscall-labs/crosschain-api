@@ -91,7 +91,8 @@ type AssetInfoRequestResponse struct {
 		LockDeadline string `json:"lock-deadline"`
 	} `json:"escrow"`
 	Account struct {
-		Init    bool   `json:"init"`
-		Balance string `json:"balance"`
+		Init        bool   `json:"init"`
+		Balance     string `json:"balance"`
+		LockBalance string `json:"lock-balance"`
 	} `json:"account"`
 }

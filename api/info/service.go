@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	evmHandler "github.com/laminafinance/crosschain-api/api/evm"
+	tvmHandler "github.com/laminafinance/crosschain-api/api/tvm"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
@@ -40,9 +42,9 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 	switch params.VM {
 	case "evm":
-		return evmHandler.AssetInfoRequest(params)
+		return evmHandler.AssetInfoRequest(r, params)
 	case "tvm":
-		// return tvmHandler.AssetInfoRequest(params)
+		return tvmHandler.AssetInfoRequest(r, params)
 	// case "svm":
 	// 	// return svmHandler.AssetInfoRequestSvm(params)
 	default:

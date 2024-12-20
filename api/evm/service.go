@@ -240,11 +240,13 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		accountInfo, _ := parsedErc20ABI.Unpack("balanceOf", results[1].ReturnData)
 
 		response.Account = struct {
-			Init    bool   `json:"init"`
-			Balance string `json:"balance"`
+			Init        bool   `json:"init"`
+			Balance     string `json:"balance"`
+			LockBalance string `json:"lock-balance"`
 		}{
-			Init:    accountSize[0].(*big.Int).Int64() > 0,
-			Balance: accountInfo[0].(*big.Int).String(),
+			Init:        accountSize[0].(*big.Int).Int64() > 0,
+			Balance:     accountInfo[0].(*big.Int).String(),
+			LockBalance: "",
 		}
 	}
 

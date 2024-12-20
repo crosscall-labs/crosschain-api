@@ -476,15 +476,6 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	return nil, nil
 }
 
-type AssetInfoRequestParams struct {
-	ChainId        string `query:"chainid"`
-	EvmAddress     string `query:"evm-address" optional:"true"`
-	TvmAddress     string `query:"tvm-address" optional:"true"`
-	EscrowAddress  string `query:"escrow-address" optional:"true"`
-	AccountAddress string `query:"account-address" optional:"true"`
-	AssetAddress   string `query:"asset-address" optional:"true"`
-}
-
 func getTestnetTonx() (string, string, string) {
 	url := os.Getenv("TONX_API_BASE_TESTNET_URL")
 	apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
@@ -492,13 +483,13 @@ func getTestnetTonx() (string, string, string) {
 	return url, apiKey, jsonrpc
 }
 
-func AssetInfoRequest(r *http.Request, parameters ...*AssetInfoRequestParams) (interface{}, error) {
-	var params *AssetInfoRequestParams
+func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
+	var params *utils.AssetInfoRequestParams
 
 	if len(parameters) > 0 {
 		params = parameters[0]
 	} else {
-		params = &AssetInfoRequestParams{}
+		params = &utils.AssetInfoRequestParams{}
 	}
 
 	if r != nil {
@@ -537,13 +528,15 @@ func AssetInfoRequest(r *http.Request, parameters ...*AssetInfoRequestParams) (i
 		// call contract to see amount locked
 		// call contact to see lock deadline
 		response.Escrow = struct {
-			EscrowBalance      string
-			EscrowLockBalance  string
-			EscrowLockDeadline string
+			Init         bool   `json:"init"`
+			Balance      string `json:"balance"`
+			LockBalance  string `json:"lock-balance"`
+			LockDeadline string `json:"lock-deadline"`
 		}{
-			EscrowBalance:      escrowBalance,
-			EscrowLockBalance:  "",
-			EscrowLockDeadline: "",
+			Init:         false,
+			Balance:      escrowBalance,
+			LockBalance:  "",
+			LockDeadline: "",
 		}
 	}
 
@@ -554,11 +547,14 @@ func AssetInfoRequest(r *http.Request, parameters ...*AssetInfoRequestParams) (i
 		// call contract to see amount locked
 		// we don't actually care if the address provided is the signer
 		response.Account = struct {
-			AccountBalance     string
-			AccountLockBalance string
+			Init        bool   `json:"init"`
+			Balance     string `json:"balance"`
+			LockBalance string `json:"lock-balance"`
 		}{
-			AccountBalance:     "",
-			AccountLockBalance: "",
+
+			Init:        false,
+			Balance:     "",
+			LockBalance: "",
 		}
 	}
 	return response, nil
