@@ -30,16 +30,8 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 	var err error
 	response := &utils.AssetInfoRequestResponse{}
-	var calls []struct {
-		contractAddress common.Address
-		abi             abi.ABI
-		method          string
-		params          interface{}
-	}
-	var results []struct {
-		Success    bool
-		ReturnData []byte
-	}
+	var calls []Calls
+	var results []MulticallResult
 
 	if !common.IsHexAddress(params.UserAddress) {
 		return nil, fmt.Errorf("escrow invalid Ethereum address")
@@ -121,12 +113,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 			"stateMutability":"view"
 	}]`))
 
-	calls = []struct {
-		contractAddress common.Address
-		abi             abi.ABI
-		method          string
-		params          interface{}
-	}{
+	calls = []Calls{
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "name", params: nil},
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "symbol", params: nil},
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "decimals", params: nil},
@@ -183,12 +170,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 				"stateMutability":"view"
 		}]`))
 
-		calls = []struct {
-			contractAddress common.Address
-			abi             abi.ABI
-			method          string
-			params          interface{}
-		}{
+		calls = []Calls{
 			{contractAddress: multicallAddress, abi: parsedMulticallABI, method: "getExtcodesize", params: escrowAddress},
 			{contractAddress: escrowAddress, abi: parsedEscrowABI, method: "getAssetInfo", params: assetAddress},
 		}
@@ -219,14 +201,9 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 			return nil, fmt.Errorf("account invalid Ethereum address")
 		}
 
-		accountAddress := common.HexToAddress(params.EscrowAddress)
+		accountAddress := common.HexToAddress(params.AccountAddress)
 
-		calls = []struct {
-			contractAddress common.Address
-			abi             abi.ABI
-			method          string
-			params          interface{}
-		}{
+		calls = []Calls{
 			{contractAddress: multicallAddress, abi: parsedMulticallABI, method: "getExtcodesize", params: accountAddress},
 			{contractAddress: assetAddress, abi: parsedErc20ABI, method: "balanceOf", params: accountAddress},
 		}
@@ -240,13 +217,11 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		accountInfo, _ := parsedErc20ABI.Unpack("balanceOf", results[1].ReturnData)
 
 		response.Account = struct {
-			Init        bool   `json:"init"`
-			Balance     string `json:"balance"`
-			LockBalance string `json:"lock-balance"`
+			Init    bool   `json:"init"`
+			Balance string `json:"balance"`
 		}{
-			Init:        accountSize[0].(*big.Int).Int64() > 0,
-			Balance:     accountInfo[0].(*big.Int).String(),
-			LockBalance: "",
+			Init:    accountSize[0].(*big.Int).Int64() > 0,
+			Balance: accountInfo[0].(*big.Int).String(),
 		}
 	}
 

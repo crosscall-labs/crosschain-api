@@ -304,15 +304,12 @@ func ViewFunction(client *ethclient.Client, contractAddress common.Address, pars
 func GetCallBytes(parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
 	data, err := parsedABI.Pack(methodName, args...)
 	if err != nil {
-		fmt.Printf("some error data: \n%v\n", err)
 		return nil, err
 	}
 	return data, nil
 }
 
 func createCall(parsedABI abi.ABI, contractAddress common.Address, methodName string, params ...interface{}) (Call, error) {
-	fmt.Printf("this is where the err is\n")
-	fmt.Printf("this is where the err is\n%v\n%v\n%v\n", parsedABI, contractAddress, methodName)
 	callData, err := GetCallBytes(parsedABI, methodName, params...)
 	if err != nil {
 		return Call{}, err
@@ -324,15 +321,7 @@ func createCall(parsedABI abi.ABI, contractAddress common.Address, methodName st
 	}, nil
 }
 
-func MulticallView(client *ethclient.Client, multicallAddress common.Address, calls []struct {
-	contractAddress common.Address
-	abi             abi.ABI
-	method          string
-	params          interface{}
-}) ([]struct {
-	Success    bool
-	ReturnData []byte
-}, error) {
+func MulticallView(client *ethclient.Client, multicallAddress common.Address, calls []Calls) ([]MulticallResult, error) {
 	var multicallViewInput []Call
 	for _, call := range calls {
 		c, err := createCall(call.abi, call.contractAddress, call.method, call.params)
@@ -354,20 +343,14 @@ func MulticallView(client *ethclient.Client, multicallAddress common.Address, ca
 		return nil, fmt.Errorf("failed to unpack multicallView result: %v", err)
 	}
 
-	var results []struct {
-		Success    bool
-		ReturnData []byte
-	}
+	var results []MulticallResult
 	fmt.Printf("\nreturnData: %v\n", returnData)
 	for _, v := range data {
 		for _, vv := range v.([]struct {
 			Success    bool   "json:\"success\""
 			ReturnData []byte "json:\"returnData\""
 		}) {
-			results = append(results, struct {
-				Success    bool
-				ReturnData []byte
-			}{
+			results = append(results, MulticallResult{
 				Success:    vv.Success,
 				ReturnData: vv.ReturnData,
 			})

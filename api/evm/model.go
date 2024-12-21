@@ -3,6 +3,7 @@ package evmHandler
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
@@ -136,4 +137,16 @@ func (m MessageOpEvm) GetType() string {
 type Call struct {
 	Target   common.Address
 	CallData []byte
+}
+
+type Calls struct {
+	contractAddress common.Address
+	abi             abi.ABI
+	method          string
+	params          interface{}
+}
+
+type MulticallResult struct {
+	Success    bool
+	ReturnData []byte
 }

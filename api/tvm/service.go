@@ -547,14 +547,11 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		// call contract to see amount locked
 		// we don't actually care if the address provided is the signer
 		response.Account = struct {
-			Init        bool   `json:"init"`
-			Balance     string `json:"balance"`
-			LockBalance string `json:"lock-balance"`
+			Init    bool   `json:"init"`
+			Balance string `json:"balance"`
 		}{
-
-			Init:        false,
-			Balance:     "",
-			LockBalance: "",
+			Init:    false,
+			Balance: "",
 		}
 	}
 	return response, nil
