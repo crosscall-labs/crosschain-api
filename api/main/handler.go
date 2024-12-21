@@ -3,10 +3,13 @@ package handler
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/laminafinance/crosschain-api/pkg/db"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/supabase-community/supabase-go"
 )
@@ -23,6 +26,26 @@ var privateKey *ecdsa.PrivateKey
 var relayAddress common.Address
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("\nRecovered from panic: %v", rec)
+
+			supabaseUrl := os.Getenv("SUPABASE_URL")
+			supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+			supabaseClient, err := supabase.NewClient(supabaseUrl, supabaseKey, nil)
+			if err == nil {
+				logErr := db.LogPanic(supabaseClient, fmt.Sprintf("%v", rec), nil)
+				if logErr != nil {
+					log.Printf("\nFailed to log panic to Supabase: %v", logErr)
+				}
+			} else {
+				log.Printf("\nFailed to create Supabase client for panic logging: %v", err)
+			}
+
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+	}()
+
 	var response interface{}
 	var err error
 	supabaseUrl := os.Getenv("SUPABASE_URL")
