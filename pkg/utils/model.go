@@ -63,9 +63,9 @@ type ChainInfo struct {
 }
 
 type AssetInfoRequestParams struct {
-	ChainId        string `query:"chainid"`
+	ChainId        string `query:"chain-id"`
 	VM             string `query:"vm" optional:"true"`
-	UserAddress    string `query:"address" optional:"true"`
+	UserAddress    string `query:"user-address" optional:"true"`
 	EscrowAddress  string `query:"escrow-address" optional:"true"`
 	AccountAddress string `query:"account-address" optional:"true"`
 	AssetAddress   string `query:"asset-address" optional:"true"`

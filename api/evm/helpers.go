@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -293,17 +294,22 @@ func ViewFunction(client *ethclient.Client, contractAddress common.Address, pars
 		fmt.Printf("some error in viewfunction: %v\n", err)
 		return nil, err
 	}
+	fmt.Print("\ngot in far0\n")
 
 	callMsg := ethereum.CallMsg{To: &contractAddress, Data: data}
 	result, err := client.CallContract(context.Background(), callMsg, nil)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("\ngot in far0\nresult: \n%v\n", result)
 
 	return result, nil
 }
 
 func GetCallBytes(parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
+	fmt.Printf("\ninternal abi: \n%v\n", parsedABI)
+	fmt.Printf("\ninternal method: \n%v\n", methodName)
+	fmt.Printf("\ninternal args: \n%v\n", args)
 	data, err := parsedABI.Pack(methodName, args...)
 	if err != nil {
 		return nil, err
@@ -314,8 +320,10 @@ func GetCallBytes(parsedABI abi.ABI, methodName string, args ...interface{}) ([]
 func createCall(parsedABI abi.ABI, contractAddress common.Address, methodName string, params ...interface{}) (Call, error) {
 	callData, err := GetCallBytes(parsedABI, methodName, params...)
 	if err != nil {
-		return Call{}, err
+		fmt.Print("uncaught error")
+		return Call{}, fmt.Errorf("bytes for call %v failed: %v", methodName, err.Error())
 	}
+	fmt.Printf("\ninternal calldata: \n%v\n", callData)
 
 	return Call{
 		Target:   contractAddress,
@@ -325,14 +333,18 @@ func createCall(parsedABI abi.ABI, contractAddress common.Address, methodName st
 
 func MulticallView(client *ethclient.Client, multicallAddress common.Address, calls []Calls) ([]MulticallResult, error) {
 	var multicallViewInput []Call
+	fmt.Print("\ngot multicall far0\n")
 	for _, call := range calls {
 		c, err := createCall(call.abi, call.contractAddress, call.method, call.params)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create call: %v", err)
 		}
+		fmt.Printf("gg%v", c)
 
-		multicallViewInput = append(multicallViewInput, c)
+		//multicallViewInput = append(multicallViewInput, c)
 	}
+
+	fmt.Print("\ngot multicall far0\n")
 
 	parsedJSON, _ := abi.JSON(strings.NewReader(contractAbiMulticall))
 	returnData, err := ViewFunction(client, multicallAddress, parsedJSON, "multicallView", multicallViewInput)
@@ -455,7 +467,12 @@ func ExecuteFunction(client ethclient.Client, contractAddress common.Address, pa
 		return nil, err
 	}
 
-	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	// privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	privateKey, relayAddress, err := utils.Key2Ecdsa(os.Getenv("HYPERLIQUID_PRIVATE_KEY"))
 	if err != nil {
 		return nil, err
 	}

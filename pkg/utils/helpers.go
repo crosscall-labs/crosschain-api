@@ -161,6 +161,10 @@ func EnvKey2Ecdsa() (*ecdsa.PrivateKey, common.Address, error) {
 	return PrivateKey2Sepc256k1(os.Getenv("RELAY_PRIVATE_KEY"))
 }
 
+func Key2Ecdsa(key string) (*ecdsa.PrivateKey, common.Address, error) {
+	return PrivateKey2Sepc256k1(key)
+}
+
 func PrivateKey2Sepc256k1(privateKeyString string) (privateKey *ecdsa.PrivateKey, publicAddress common.Address, err error) {
 	privateKey, err = crypto.HexToECDSA(privateKeyString)
 	if err != nil {

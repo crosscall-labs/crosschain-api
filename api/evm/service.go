@@ -83,7 +83,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 	if r != nil {
 		if err := utils.ParseAndValidateParams(r, &params); err != nil {
-			return nil, err
+			return nil, utils.ErrInternal(err.Error())
 		}
 	}
 
@@ -92,8 +92,11 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	var calls []Calls
 	var results []MulticallResult
 
+	fmt.Printf("\nparams fields: \n")
+	utils.PrintStructFields(params)
+
 	if !common.IsHexAddress(params.UserAddress) {
-		return nil, fmt.Errorf("escrow invalid Ethereum address")
+		return nil, utils.ErrInternal(fmt.Errorf("escrow invalid Ethereum address").Error())
 	}
 
 	userAddress := common.HexToAddress(params.EscrowAddress)
@@ -101,7 +104,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	jsonrpc, _ := getChainRpc(params.ChainId)
 	client, err := ethclient.Dial(jsonrpc)
 	if err != nil {
-		return nil, fmt.Errorf("client connection failed: %v", err)
+		return nil, utils.ErrInternal(fmt.Errorf("client connection failed: %v", err).Error())
 	}
 
 	var multicallAddress common.Address ///////////////////// need to create a func to deternibne multicall
@@ -179,12 +182,12 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "totalSupply", params: nil},
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "balanceOf", params: userAddress},
 	}
-
+	fmt.Print("\ngot this far1\n")
 	results, err = MulticallView(client, multicallAddress, calls)
 	if err != nil {
-		return nil, fmt.Errorf("multicall view failed: %v", err)
+		return nil, utils.ErrInternal(fmt.Errorf("multicall view failed: %v", err).Error())
 	}
-
+	fmt.Print("\ngot this far2\n")
 	assetName, _ := parsedErc20ABI.Unpack("name", results[0].ReturnData)
 	assetSymbol, _ := parsedErc20ABI.Unpack("symbol", results[1].ReturnData)
 	assetDecimals, _ := parsedErc20ABI.Unpack("decimals", results[2].ReturnData)
@@ -208,7 +211,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		Supply:      userBalance[0].(*big.Int).String(),
 		Description: "",
 	}
-
+	fmt.Print("\ngot this far3\n")
 	if params.EscrowAddress != "" {
 		if !common.IsHexAddress(params.EscrowAddress) {
 			return nil, fmt.Errorf("escrow invalid Ethereum address")
@@ -236,7 +239,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 		results, err = MulticallView(client, multicallAddress, calls)
 		if err != nil {
-			return nil, fmt.Errorf("multicall view failed: %v", err)
+			return nil, utils.ErrInternal(fmt.Errorf("multicall view failed: %v", err).Error())
 		}
 
 		escrowSize, _ := parsedMulticallABI.Unpack("getExtcodesize", results[0].ReturnData)
@@ -257,7 +260,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 	if params.AccountAddress != "" {
 		if !common.IsHexAddress(params.AccountAddress) {
-			return nil, fmt.Errorf("account invalid Ethereum address")
+			return nil, utils.ErrInternal(fmt.Errorf("account invalid Ethereum address").Error())
 		}
 
 		accountAddress := common.HexToAddress(params.AccountAddress)
@@ -269,7 +272,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 		results, err = MulticallView(client, multicallAddress, calls)
 		if err != nil {
-			return nil, fmt.Errorf("multicall view failed: %v", err)
+			return nil, utils.ErrInternal(fmt.Errorf("multicall view failed: %v", err).Error())
 		}
 
 		accountSize, _ := parsedMulticallABI.Unpack("getExtcodesize", results[0].ReturnData)
@@ -300,7 +303,7 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 
 	if r != nil {
 		if err := utils.ParseAndValidateParams(r, &params); err != nil {
-			return nil, err
+			return nil, utils.ErrInternal(err.Error())
 		}
 	}
 
@@ -314,7 +317,7 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 	signer := common.HexToAddress("19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A") // should be from params
 	client, err := ethclient.Dial("https://rpc2.sepolia.org")                 // should be from inputs but ignored
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrInternal(err.Error())
 	}
 
 	a := common.HexToAddress("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
@@ -340,7 +343,7 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 
 	escrowAddressBytes, initalizerBytes, err := GetEscrowAddress(client, signer, escrowFactoryAddress, escrowSingletonAddress, salt)
 	if err != nil {
-		fmt.Printf("\ngot an error: \n%v\n", err)
+		utils.ErrInternal(err.Error())
 	}
 
 	parsedJSON, _ := abi.JSON(strings.NewReader(`[{
@@ -394,12 +397,12 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 
 		response, err := ViewFunction(client, common.BytesToAddress(escrowAddressBytes), parsedJSON, "extendNonce")
 		if err != nil {
-			return nil, fmt.Errorf("failed extendNonce call: %v\n", err)
+			return nil, utils.ErrInternal(fmt.Errorf("failed extendNonce call: %v", err).Error())
 		}
 
 		parsedResults, err := parsedJSON.Unpack("extendNonce", response)
 		if err != nil {
-			return nil, fmt.Errorf("failed extendNonce parse: %v\n", err)
+			return nil, utils.ErrInternal(fmt.Errorf("failed extendNonce parse: %v", err).Error())
 		}
 
 		extendNonce = parsedResults[0].(*big.Int)
@@ -446,8 +449,6 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 	}
 
 	return messageEscrowEvm, nil
-
-	return MessageEscrowEvm{}, nil
 }
 
 func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
