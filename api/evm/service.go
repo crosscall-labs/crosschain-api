@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -14,6 +15,7 @@ import (
 )
 
 func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestParams) (interface{}, error) {
+	fmt.Print("I got here")
 	var params *utils.AssetMintRequestParams
 
 	if len(parameters) > 0 {
@@ -63,7 +65,7 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 			{"name":"to","type":"address","internalType":"address"},
 			{"name":"amount","type":"uint256","internalType":"uint256"}
 		],
-		"outputs":[{"name":"size_","type":"uint256","internalType":"uint256"}],
+		"outputs":[],
 		"stateMutability":"nonpayable"
 	}]`))
 
@@ -91,6 +93,8 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	response := &utils.AssetInfoRequestResponse{}
 	var calls []Calls
 	var results []MulticallResult
+	response.ChainId = params.ChainId
+	response.VM = params.VM
 
 	fmt.Printf("\nparams fields: \n")
 	utils.PrintStructFields(params)
@@ -99,7 +103,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		return nil, utils.ErrInternal(fmt.Errorf("escrow invalid Ethereum address").Error())
 	}
 
-	userAddress := common.HexToAddress(params.EscrowAddress)
+	userAddress := common.HexToAddress(params.UserAddress)
 
 	jsonrpc, _ := getChainRpc(params.ChainId)
 	client, err := ethclient.Dial(jsonrpc)
@@ -107,7 +111,13 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		return nil, utils.ErrInternal(fmt.Errorf("client connection failed: %v", err).Error())
 	}
 
-	var multicallAddress common.Address ///////////////////// need to create a func to deternibne multicall
+	var multicallAddress common.Address
+	multicallAddress, err = getMulticallAddress(params.ChainId) ///////////////////// need to create a func to deternibne multicall
+	fmt.Printf("\nmulticall address: %v", params.ChainId)
+	fmt.Printf("\nmulticall address: %v", multicallAddress)
+	if err != nil {
+		return nil, utils.ErrInternal(err.Error())
+	}
 	parsedMulticallABI, _ := abi.JSON(strings.NewReader(`[{
 			"type":"function",
 			"name":"getExtcodesize",
@@ -140,35 +150,35 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	assetAddress := common.HexToAddress(params.AssetAddress)
 
 	parsedErc20ABI, _ := abi.JSON(strings.NewReader(`[{
-			"type": "function"
+			"type": "function",
 			"name": "name",
 			"inputs": [],
 			"outputs": [{"name":"","type":"string","internalType":"string"}],
 			"stateMutability":"view"
 		},
   	{
-			"type": "function"
+			"type": "function",
 			"name": "symbol",
 			"inputs": [],
 			"outputs": [{"name":"","type":"string","internalType":"string"}],
 			"stateMutability":"view"
 		},
 		{
-			"type": "function"
+			"type": "function",
 			"name": "decimals",
 			"inputs": [],
 			"outputs": [{"name":"","type": "uint8","internalType":"uint8"}],
 			"stateMutability":"view"
 		},
 		{
-			"type": "function"
+			"type": "function",
 			"name": "totalSupply",
 			"inputs": [],
 			"outputs": [{"name":"","type": "uint256","internalType":"uint256"}],
 			"stateMutability":"view"
 		},
 		{
-			"type": "function"
+			"type": "function",
 			"name": "balanceOf",
 			"inputs": [{"name":"account","type": "address","internalType":"address"}],
 			"outputs": [{"name":"","type": "uint256","internalType":"uint256"}],
@@ -182,17 +192,19 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "totalSupply", params: nil},
 		{contractAddress: assetAddress, abi: parsedErc20ABI, method: "balanceOf", params: userAddress},
 	}
-	fmt.Print("\ngot this far1\n")
+
 	results, err = MulticallView(client, multicallAddress, calls)
 	if err != nil {
 		return nil, utils.ErrInternal(fmt.Errorf("multicall view failed: %v", err).Error())
 	}
-	fmt.Print("\ngot this far2\n")
+
 	assetName, _ := parsedErc20ABI.Unpack("name", results[0].ReturnData)
 	assetSymbol, _ := parsedErc20ABI.Unpack("symbol", results[1].ReturnData)
 	assetDecimals, _ := parsedErc20ABI.Unpack("decimals", results[2].ReturnData)
 	assetTotalSupply, _ := parsedErc20ABI.Unpack("totalSupply", results[3].ReturnData)
 	userBalance, _ := parsedErc20ABI.Unpack("balanceOf", results[4].ReturnData)
+
+	fmt.Print("\ngot this far2\n")
 
 	response.Asset = struct {
 		Address     string `json:"address"`
@@ -206,12 +218,17 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 		Address:     assetAddress.Hex(),
 		Name:        assetName[0].(string),
 		Symbol:      assetSymbol[0].(string),
-		Decimal:     assetDecimals[0].(*big.Int).String(),
+		Decimal:     strconv.Itoa(int(assetDecimals[0].(uint8))),
 		TotalSupply: assetTotalSupply[0].(*big.Int).String(),
-		Supply:      userBalance[0].(*big.Int).String(),
+		Supply:      "",
 		Description: "",
 	}
-	fmt.Print("\ngot this far3\n")
+	response.User = struct {
+		Balance string "json:\"balance\""
+	}{
+		Balance: userBalance[0].(*big.Int).String(),
+	}
+
 	if params.EscrowAddress != "" {
 		if !common.IsHexAddress(params.EscrowAddress) {
 			return nil, fmt.Errorf("escrow invalid Ethereum address")

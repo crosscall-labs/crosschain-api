@@ -297,7 +297,9 @@ func ViewFunction(client *ethclient.Client, contractAddress common.Address, pars
 	fmt.Print("\ngot in far0\n")
 
 	callMsg := ethereum.CallMsg{To: &contractAddress, Data: data}
-	result, err := client.CallContract(context.Background(), callMsg, nil)
+	fmt.Printf("\nto: %v\n", contractAddress)
+	fmt.Printf("\ndata: %v\n", data)
+	result, err := client.CallContract(context.Background(), callMsg, big.NewInt(305965178))
 	if err != nil {
 		return nil, err
 	}
@@ -307,14 +309,28 @@ func ViewFunction(client *ethclient.Client, contractAddress common.Address, pars
 }
 
 func GetCallBytes(parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
-	fmt.Printf("\ninternal abi: \n%v\n", parsedABI)
-	fmt.Printf("\ninternal method: \n%v\n", methodName)
-	fmt.Printf("\ninternal args: \n%v\n", args)
-	data, err := parsedABI.Pack(methodName, args...)
-	if err != nil {
-		return nil, err
+	isArgsEmpty := func(args []interface{}) bool {
+		if len(args) == 0 {
+			return true
+		}
+
+		for _, arg := range args {
+			if arg != nil {
+				return false
+			}
+		}
+		return true
 	}
-	return data, nil
+
+	var data []byte
+	var err error
+	if !isArgsEmpty(args) {
+		data, err = parsedABI.Pack(methodName, args...)
+	} else {
+		data, err = parsedABI.Pack(methodName)
+	}
+
+	return data, err
 }
 
 func createCall(parsedABI abi.ABI, contractAddress common.Address, methodName string, params ...interface{}) (Call, error) {
@@ -339,9 +355,8 @@ func MulticallView(client *ethclient.Client, multicallAddress common.Address, ca
 		if err != nil {
 			return nil, fmt.Errorf("failed to create call: %v", err)
 		}
-		fmt.Printf("gg%v", c)
 
-		//multicallViewInput = append(multicallViewInput, c)
+		multicallViewInput = append(multicallViewInput, c)
 	}
 
 	fmt.Print("\ngot multicall far0\n")

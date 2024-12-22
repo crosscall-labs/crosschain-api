@@ -75,7 +75,10 @@ type AssetInfoRequestResponse struct {
 	ChainId string `json:"chain-id"`
 	VM      string `json:"vm"`
 	Name    string `json:"name"`
-	Asset   struct {
+	User    struct {
+		Balance string `json:"balance"`
+	}
+	Asset struct {
 		Address     string `json:"address"`
 		Name        string `json:"name"`
 		Symbol      string `json:"symbol"`

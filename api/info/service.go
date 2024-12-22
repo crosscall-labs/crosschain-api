@@ -30,14 +30,14 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 
 	if r != nil {
 		if err := utils.ParseAndValidateParams(r, &params); err != nil {
-			return nil, err
+			return nil, utils.ErrInternal(err.Error())
 		}
 	}
 
 	var err error
 	params.ChainId, params.VM, err = getChainType(params.ChainId)
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrInternal(err.Error())
 	}
 
 	switch params.VM {
@@ -48,9 +48,8 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	// case "svm":
 	// 	// return svmHandler.AssetInfoRequestSvm(params)
 	default:
-		return nil, fmt.Errorf("Virtual machine %v is unsupported", params.VM)
+		return nil, utils.ErrInternal(fmt.Errorf("Virtual machine %v is unsupported", params.VM).Error())
 	}
-	return nil, nil
 }
 
 func UserInfoRequest(r *http.Request, parameters ...*interface{}) (interface{}, error) {

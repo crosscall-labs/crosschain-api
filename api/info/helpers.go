@@ -16,6 +16,7 @@ var chainTypeMap = map[string]struct {
 	"62298":      {ChainId: "62298", VM: "evm"},
 	"0x63639999": {ChainId: "1667471769", VM: "tvm"},
 	"1667471769": {ChainId: "1667471769", VM: "tvm"},
+	"998":        {ChainId: "998", VM: "evm"},
 }
 
 func getChainType(chainId string) (string, string, error) {
