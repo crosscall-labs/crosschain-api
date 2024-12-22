@@ -13,6 +13,65 @@ import (
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
+func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestParams) (interface{}, error) {
+	var params *utils.AssetMintRequestParams
+
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &utils.AssetMintRequestParams{}
+	}
+
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	fmt.Print("our params data:\n")
+	utils.PrintStructFields(params)
+
+	if !common.IsHexAddress(params.UserAddress) {
+		return nil, fmt.Errorf("escrow invalid Ethereum address")
+	}
+
+	if !common.IsHexAddress(params.AssetAddress) {
+		return nil, fmt.Errorf("escrow invalid Ethereum address")
+	}
+
+	bigInt := new(big.Int)
+	_, success := bigInt.SetString(params.AssetAmount, 10) // Base 10 for decimal numbers
+
+	if !success {
+		return nil, fmt.Errorf("ailed to parse the string into *big.Int")
+	}
+
+	jsonrpc, _ := getChainRpc(params.ChainId)
+	client, err := ethclient.Dial(jsonrpc)
+	if err != nil {
+		fmt.Printf("\nclient connection failed: %v\n", err)
+		return nil, fmt.Errorf("client connection failed: %v", err)
+	}
+
+	userAddress := common.HexToAddress(params.UserAddress)
+	assetAddress := common.HexToAddress(params.AssetAddress)
+
+	parsedFaucetABI, _ := abi.JSON(strings.NewReader(`[{
+		"type":"function",
+		"name":"mint",
+		"inputs":[
+			{"name":"to","type":"address","internalType":"address"},
+			{"name":"amount","type":"uint256","internalType":"uint256"}
+		],
+		"outputs":[{"name":"size_","type":"uint256","internalType":"uint256"}],
+		"stateMutability":"nonpayable"
+	}]`))
+
+	fmt.Print("\ngot here")
+
+	return ExecuteFunction(*client, assetAddress, parsedFaucetABI, "mint", common.Big0, userAddress, bigInt)
+}
+
 func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
 	var params *utils.AssetInfoRequestParams
 

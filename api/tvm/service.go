@@ -36,6 +36,10 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 	return ctx, api, backendWallet, nil
 }
 
+func AssetMintRequest(r *http.Request, parameters ...interface{}) (interface{}, error) {
+	return nil, nil
+}
+
 // now that we have a way to execute, deploy + execute, view, we can formulate and execute the escrow request
 // the current issue is we need a way to execute the transaction on the users behalf, ie they sign
 // escrow we do not need to do this
