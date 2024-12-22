@@ -11,6 +11,7 @@ var chainRpcMap = map[string]string{
 	"11155111": "https://ethereum-sepolia.publicnode.com",
 	"0xF35A":   "https://rpc.devnet.citrea.xyz",
 	"62298":    "https://rpc.devnet.citrea.xyz",
+	"998":      "https://api.hyperliquid-testnet.xyz/evm",
 }
 
 func getChainRpc(chainId string) (string, error) {

@@ -59,6 +59,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = AssetInfoRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "asset-mint":
+			response, err = AssetMintRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		// case "user-info":
 		// 	response, err = UnsignedEntryPointRequest(r)
 		// 	HandleResponse(w, r, supabaseClient, response, err)

@@ -10,7 +10,9 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
@@ -440,4 +442,92 @@ func EncodeAndHash(extendTime *big.Int, assetAddress common.Address, extendNonce
 	bytes_ = append(bytes_, padded_[:]...)
 
 	return ToEthSignedMessageHash(crypto.Keccak256(bytes_))
+}
+
+func ExecuteFunction(client ethclient.Client, contractAddress common.Address, parsedABI abi.ABI, methodName string, value *big.Int, args ...interface{}) (receiptJSON []byte, err error) {
+	chainId, err := client.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, relayAddress, err := utils.EnvKey2Ecdsa()
+	if err != nil {
+		return nil, err
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainId)
+	if err != nil {
+		return nil, err
+	}
+	auth.Value = big.NewInt(1000000000000000000)
+
+	data, err := parsedABI.Pack(methodName, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	callMsg := ethereum.CallMsg{
+		From:     relayAddress,
+		To:       &contractAddress,
+		Gas:      0,
+		GasPrice: gasPrice,
+		Value:    value,
+		Data:     data,
+	}
+
+	_, err = client.CallContract(context.Background(), callMsg, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := client.PendingNonceAt(context.Background(), relayAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	estimatedGas, err := client.EstimateGas(context.Background(), callMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	gasLimit := 120 * estimatedGas / 100
+
+	tx := types.NewTransaction(nonce, contractAddress, value, gasLimit, gasPrice, data)
+
+	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(chainId), privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	reciept, err := bind.WaitMined(context.Background(), &client, signedTx)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("tx receipt: \n%v", reciept)
+
+	var returnedData []byte
+	for _, log := range reciept.Logs {
+		if len(log.Data) > 0 {
+			returnedData = log.Data
+			break
+		}
+	}
+
+	// receiptJSON, err = json.Marshal(receipt)
+	// if err != nil {
+	// 	log.Fatalf("Failed to JSON marshal receipt: %v", err)
+	// 	return nil, err
+	// }
+
+	return returnedData, nil
 }

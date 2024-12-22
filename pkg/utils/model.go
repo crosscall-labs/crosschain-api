@@ -96,3 +96,11 @@ type AssetInfoRequestResponse struct {
 		// LockBalance string `json:"lock-balance"`
 	} `json:"account"`
 }
+
+type AssetMintRequestParams struct {
+	ChainId      string `query:"chain-id"`
+	VM           string `query:"vm" optional:"true"`
+	UserAddress  string `query:"user-address"`
+	AssetAddress string `query:"asset-address"`
+	AssetAmount  string `query:"asset-amount"`
+}
