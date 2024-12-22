@@ -35,7 +35,7 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 	}
 
 	var err error
-	params.ChainId, params.VM, err = getChainType(params.ChainId)
+	params.ChainId, params.VM, err = utils.GetChainType(params.ChainId)
 	if err != nil {
 		return nil, utils.ErrInternal(err.Error())
 	}

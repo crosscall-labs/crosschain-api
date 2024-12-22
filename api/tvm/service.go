@@ -36,8 +36,98 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 	return ctx, api, backendWallet, nil
 }
 
-func AssetMintRequest(r *http.Request, parameters ...interface{}) (interface{}, error) {
-	return nil, nil
+type TxBlockResponse struct {
+	Tx    ParsedTransaction `json:"tx"`
+	Block ParsedBlock       `json:"block"`
+	Error string            `json:"error,omitempty"`
+}
+
+type ParsedTransaction struct {
+	LT   string `json:"lt"`
+	Type string `json:"type"`
+	Hash string `json:"hash"`
+	Out  string `json:"out"`
+	To   string `json:"to"`
+}
+
+type ParsedBlock struct {
+	Workchain string `json:"workchain"`
+	Shard     string `json:"shard"`
+	SeqNum    string `json:"seq_num"`
+	RootHash  string `json:"root_hash"`
+	FileHash  string `json:"file_hash"`
+}
+
+func ParseTxBlockResponse(tx *tlb.Transaction, block *ton.BlockIDExt, err error) TxBlockResponse {
+	return TxBlockResponse{
+		Tx: ParsedTransaction{
+			LT:   strconv.FormatUint(tx.LT, 10),
+			Type: string(tx.IO.In.MsgType),
+			Hash: hex.EncodeToString(tx.Hash),
+			Out:  tx.TotalFees.Coins.String(),
+			To:   hex.EncodeToString(tx.AccountAddr),
+		},
+		Block: ParsedBlock{
+			Workchain: strconv.Itoa(int(block.Workchain)),
+			Shard:     strconv.FormatInt(block.Shard, 10),
+			SeqNum:    strconv.FormatUint(uint64(block.SeqNo), 10),
+			RootHash:  hex.EncodeToString(block.RootHash),
+			FileHash:  hex.EncodeToString(block.FileHash),
+		},
+	}
+}
+
+func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestParams) (interface{}, error) {
+	var params *utils.AssetMintRequestParams
+
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &utils.AssetMintRequestParams{}
+	}
+
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	ctx, _, w, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddressRaw := params.AssetAddress
+	contractAddress := address.MustParseAddr(contractAddressRaw)
+
+	userAddressRaw := params.AssetAddress
+	userAddress := address.MustParseAddr(userAddressRaw)
+	jettonAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64)
+	if err != nil {
+		return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
+	}
+
+	queryId := uint64(60)
+	forwardTonAmount := uint64(0)
+	totalTonAmount := uint64(0)
+
+	msgBody := MintMessage(*userAddress, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
+	amount := tlb.MustFromTON("0.01")
+
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     contractAddress,
+			Amount:      amount,
+			Body:        msgBody,
+		},
+	})
+	// fmt.Printf("\ntx: \n%v", tx)
+	// fmt.Printf("\nblock: \n%v", block)
+
+	return ParseTxBlockResponse(tx, block, err), nil
 }
 
 // now that we have a way to execute, deploy + execute, view, we can formulate and execute the escrow request
@@ -358,7 +448,7 @@ func Test3Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrInternal(err.Error())
 	}
 
 	fmt.Printf("\nthis is the returned data from test3: \ntx:\n%v\nblock:\n%v", tx, block)
@@ -477,6 +567,53 @@ func Test5Request(r *http.Request, parameters ...*UnsignedEntryPointRequestParam
 	// fmt.Printf("Response Body:\n%s\n", string(responseBody))
 
 	//func calculate_contract_address(state_init *cell.Cell, workchain int) *cell.Cell {
+	return nil, nil
+}
+
+func Test6Request(r *http.Request, parameters ...interface{}) (interface{}, error) {
+	// ctx, api, w, err := InitClient()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// tokenContract := address.MustParseAddr("EQBCFwW8uFUh-amdRmNY9NyeDEaeDYXd9ggJGsicpqVcHq7B")
+	// master := jetton.NewJettonMasterClient(api, tokenContract)
+
+	// data, err := master.GetJettonData(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// decimals := 9
+	// content := data.Content.(*nft.ContentOnchain)
+	// log.Println("total supply:", data.TotalSupply.Uint64())
+	// log.Println("mintable:", data.Mintable)
+	// log.Println("admin addr:", data.AdminAddr)
+	// log.Println("onchain content:")
+	// log.Println("	name:", content.Name)
+	// log.Println("	symbol:", content.GetAttribute("symbol"))
+	// if content.GetAttribute("decimals") != "" {
+	// 	decimals, err = strconv.Atoi(content.GetAttribute("decimals"))
+	// 	if err != nil {
+	// 		log.Fatal("invalid decimals")
+	// 	}
+	// }
+	// log.Println("	decimals:", decimals)
+	// log.Println("	description:", content.Description)
+	// log.Println()
+
+	// tokenWallet, err := master.GetJettonWallet(ctx, address.MustParseAddr("EQCWdteEWa4D3xoqLNV0zk4GROoptpM1-p66hmyBpxjvbbnn"))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// tokenBalance, err := tokenWallet.GetBalance(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// log.Println("jetton balance:", tlb.MustFromNano(tokenBalance, decimals))
+
 	return nil, nil
 }
 

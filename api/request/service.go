@@ -24,6 +24,12 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 		}
 	}
 
+	var err error
+	_, params.VM, err = utils.GetChainType(params.ChainId)
+	if err != nil {
+		return nil, utils.ErrInternal(err.Error())
+	}
+
 	switch params.VM {
 	case "evm":
 		return evmHandler.AssetMintRequest(r, params)

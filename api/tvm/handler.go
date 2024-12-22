@@ -87,6 +87,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = Test5Request(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "test6": // depply jetton via tonutils-go
+			response, err = Test6Request(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))
