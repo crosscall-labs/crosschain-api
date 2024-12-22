@@ -35,7 +35,7 @@
 - [ ] all evm selectors should be precalculated
 - [ ] migrate info apis to crosschain-api
 	- [x] create faucet
-	- [ ] migrate faucet
+	- [x] migrate faucet
 	- [ ] create spot
 	- [ ] migrate spot
 	- [ ] create user

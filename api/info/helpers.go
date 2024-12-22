@@ -24,5 +24,5 @@ func getChainType(chainId string) (string, string, error) {
 		return data.ChainId, data.VM, nil
 	}
 
-	return "", "", fmt.Errorf("Unsupporting Chain ID: %s", chainId)
+	return "", "", fmt.Errorf("unsupporting chain id: %s", chainId)
 }

@@ -228,7 +228,7 @@ func EnableCORS(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		fmt.Printf("Method: %s, URL: %s", r.Method, r.URL)
+		fmt.Printf("\nMethod: %s, URL: %s", r.Method, r.URL)
 
 		next.ServeHTTP(w, r)
 	})

@@ -11,7 +11,7 @@ func LogError(client *supabase.Client, err error, message string, context interf
 	logData := map[string]interface{}{
 		"log_level": "ERROR",
 		"error":     err,
-		"message":   "Failed to process escrow payout.",
+		"message":   message,
 		"context":   context,
 	}
 

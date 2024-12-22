@@ -291,19 +291,14 @@ func PackArgs(methodID []byte, methodInputs abi.Arguments, args ...interface{}) 
 func ViewFunction(client *ethclient.Client, contractAddress common.Address, parsedABI abi.ABI, methodName string, args ...interface{}) ([]byte, error) {
 	data, err := parsedABI.Pack(methodName, args...)
 	if err != nil {
-		fmt.Printf("some error in viewfunction: %v\n", err)
 		return nil, err
 	}
-	fmt.Print("\ngot in far0\n")
 
 	callMsg := ethereum.CallMsg{To: &contractAddress, Data: data}
-	fmt.Printf("\nto: %v\n", contractAddress)
-	fmt.Printf("\ndata: %v\n", data)
 	result, err := client.CallContract(context.Background(), callMsg, big.NewInt(305965178))
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("\ngot in far0\nresult: \n%v\n", result)
 
 	return result, nil
 }
@@ -359,8 +354,6 @@ func MulticallView(client *ethclient.Client, multicallAddress common.Address, ca
 		multicallViewInput = append(multicallViewInput, c)
 	}
 
-	fmt.Print("\ngot multicall far0\n")
-
 	parsedJSON, _ := abi.JSON(strings.NewReader(contractAbiMulticall))
 	returnData, err := ViewFunction(client, multicallAddress, parsedJSON, "multicallView", multicallViewInput)
 	if err != nil {
@@ -373,7 +366,6 @@ func MulticallView(client *ethclient.Client, multicallAddress common.Address, ca
 	}
 
 	var results []MulticallResult
-	fmt.Printf("\nreturnData: %v\n", returnData)
 	for _, v := range data {
 		for _, vv := range v.([]struct {
 			Success    bool   "json:\"success\""

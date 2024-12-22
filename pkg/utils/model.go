@@ -77,7 +77,7 @@ type AssetInfoRequestResponse struct {
 	Name    string `json:"name"`
 	User    struct {
 		Balance string `json:"balance"`
-	}
+	} `json:"user"`
 	Asset struct {
 		Address     string `json:"address"`
 		Name        string `json:"name"`
