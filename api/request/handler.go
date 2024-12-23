@@ -30,6 +30,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = AssetMintRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "unsigned-crosschain-request": // pull users current transaction logs across all chains
+			response, err = UnsignedCrosschainRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(utils.ErrMalformedRequest("Invalid query parameter"))

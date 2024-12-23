@@ -63,7 +63,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = UserInfoRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
-		case "user-transactions": // api request to pull users current transaction logs across all chains
+		case "user-transactions": // pull users current transaction logs across all chains
 			response, err = UserTransactionsRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return

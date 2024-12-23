@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/laminafinance/crosschain-api/pkg/tonx"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
@@ -159,8 +160,6 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 			Body:        msgBody,
 		},
 	})
-	// fmt.Printf("\ntx: \n%v", tx)
-	// fmt.Printf("\nblock: \n%v", block)
 
 	return ParseTxBlockResponse(tx, block, err), nil
 }
@@ -348,6 +347,277 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		ValueNano:    big.NewInt(int64(value)).String(), // default to 0.1 ton
 		MessageHash:  hex.EncodeToString(messageHash),
 	}, nil
+}
+
+func calculateProxyWalletAddress(nonce uint64, entrypointAddress address.Address, evmAddressBigInt *big.Int, tvmAddress address.Address, workchain byte) (*address.Address, *tlb.StateInit) {
+	proxyWalletConfigCell := cell.BeginCell().
+		MustStoreUInt(nonce, 64).
+		MustStoreAddr(&entrypointAddress).
+		MustStoreUInt(evmAddressBigInt.Uint64(), 160).
+		MustStoreAddr(&tvmAddress).
+		EndCell()
+
+	proxyWalletCodeCell, _ := cell.FromBOC(proxyWalletBocBuffer)
+
+	state := &tlb.StateInit{
+		Data: proxyWalletConfigCell,
+		Code: proxyWalletCodeCell,
+	}
+
+	stateCell, _ := tlb.ToCell(state)
+
+	return address.NewAddress(0, workchain, stateCell.Hash()), state
+}
+
+type SignedEntryPointRequestParams struct {
+	EvmAddress   string `query:"evm-address"`
+	TvmAddress   string `query:"tvm-address"`
+	AssetAddress string `query:"asset-address"`
+	AssetAmount  string `query:"asset-amount"`
+}
+
+func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointRequestParams) (interface{}, error) {
+	var params *SignedEntryPointRequestParams
+
+	if len(parameters) > 0 {
+		params = parameters[0]
+	} else {
+		params = &SignedEntryPointRequestParams{}
+	}
+
+	if r != nil {
+		if err := utils.ParseAndValidateParams(r, &params); err != nil {
+			return nil, err
+		}
+	}
+
+	ctx, api, w, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+	nonce := 0
+	entrypointAddress := address.MustParseAddr("EQAGJK50PW_a1ZbQWK0yldegu56FlX0nXKQIa7xzoWCzQp78")
+	b, err := api.GetMasterchainInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	evmAddressBigInt := new(big.Int).SetBytes(common.HexToAddress(params.EvmAddress).Bytes())
+	if evmAddressBigInt.BitLen() > 160 {
+		return nil, utils.ErrInternal(fmt.Errorf("invalid address: exceeds 160 bits").Error())
+	}
+
+	tvmAddress := address.MustParseAddr(params.TvmAddress)
+
+	proxyWalletAddress, state := calculateProxyWalletAddress(uint64(nonce), *entrypointAddress, evmAddressBigInt, *tvmAddress, byte(b.Workchain))
+
+	assetAddress := address.MustParseAddr(params.AssetAddress)
+	assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64)
+	if err != nil {
+		return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
+	}
+	queryId := uint64(71)
+	forwardTonAmount := uint64(5000000)
+	totalTonAmount := uint64(10000000)
+	mintMsgBody := MintMessage(tvmAddress.String(), queryId, assetAmount, forwardTonAmount, *assetAddress, totalTonAmount)
+	amount := tlb.MustFromTON("0.01")
+	// we are calling the mint function to mint tokens to user tvm address
+	// we check if user sa is initialize
+
+	mintMessage := &tlb.InternalMessage{
+		IHRDisabled: true,
+		Bounce:      false,
+		DstAddr:     assetAddress,
+		Amount:      amount,
+		Body:        mintMsgBody,
+	}
+
+	// export function EntrypointMessageToCell(message: EntrypointMessage): Cell {
+	// return beginCell()
+	// .storeAddress(message.destination)
+	// .storeRef(proxyWalletMessageToCell(message.messageToProxyWallet))
+	// .endCell();
+	// }
+
+	// export function proxyWalletMessageToCell(message: ProxyWalletMessage): Cell {
+	// return beginCell()
+	// .storeUint(11, 32) // operation identifier
+	// .storeUint(message.queryId, 64) // queryId
+	// .storeRef(signatureToCell(message.signature))
+	// .storeRef(executionDataToCell(message.data))
+	// .endCell();
+	// }
+
+	// export function executionDataToCell(data: ExecutionData): Cell {
+	// return beginCell()
+	// .storeBit(data.regime)
+	// .storeAddress(data.destination)
+	// .storeCoins(data.value)
+	// .storeRef(data.body)
+	// .endCell();
+	// }
+
+	proxyMessage := &tlb.InternalMessage{
+		IHRDisabled: true,
+		Bounce:      false,
+		DstAddr:     proxyWalletAddress,
+		Amount:      amount,
+		Body:        mintMessage.Payload(), // we need to make the signed payload
+		StateInit:   state,
+	}
+
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     entrypointAddress,
+			Amount:      tlb.MustFromTON("0.03"),
+			Body:        proxyMessage.Payload(),
+		},
+	})
+
+	return ParseTxBlockResponse(tx, block, err), nil
+
+	/*
+		function contractAddress(workchain, init) {
+		    let hash = (0, Builder_1.beginCell)()
+		        .store((0, StateInit_1.storeStateInit)(init))
+		        .endCell()
+		        .hash();
+		    return new Address_1.Address(workchain, hash);
+		}
+		exports.contractAddress = contractAddress;
+
+		export function proxyWalletConfigToCell(config: ProxyWalletConfig): Cell {
+		    return beginCell()
+		        .storeUint(config.nonce, 64)
+		        .storeAddress(config.entrypoint)
+		        .storeUint(config.owner_evm_Address, 160)
+		        .storeAddress(config.owner_ton_Address)
+		    .endCell();
+		}
+
+		static createFromConfig(config: ProxyWalletConfig, code: Cell, workchain = 0) {
+				const data = proxyWalletConfigToCell(config);
+				const init = { code, data };
+				return new ProxyWallet(contractAddress(workchain, init), init);
+		}
+
+
+
+
+
+			contractAddressRaw := params.AssetAddress
+			contractAddress := address.MustParseAddr(contractAddressRaw)
+
+			userAddressRaw := params.UserAddress
+			//userAddress := address.MustParseAddr(userAddressRaw)
+			jettonAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64)
+			if err != nil {
+				return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
+			}
+
+			queryId := uint64(71)
+			forwardTonAmount := uint64(5000000)
+			totalTonAmount := uint64(10000000)
+
+			msgBody := MintMessage(userAddressRaw, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
+			amount := tlb.MustFromTON("0.01")
+
+			tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+				Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+				InternalMessage: &tlb.InternalMessage{
+					IHRDisabled: true,
+					Bounce:      false,
+					DstAddr:     contractAddress,
+					Amount:      amount,
+					Body:        msgBody,
+				},
+			})
+
+			return ParseTxBlockResponse(tx, block, err), nil
+
+			---------------------------------------------------------
+				ctx, _, w, err := InitClient()
+			if err != nil {
+				return nil, err
+			}
+
+			countercodehex := "b5ee9c7241010a01008b000114ff00f4a413f4bcf2c80b0102016202070202ce03060201200405006b1b088831c02456f8007434c0cc1c6c244c383c0074c7f4cfcc74c7cc3c008060841fa1d93beea63e1080683e18bc00b80c2103fcbc20001d3b513434c7c07e1874c7c07e18b46000194f842f841c8cb1fcb1fc9ed54802016e0809000db5473e003f0830000db63ffe003f08500171db07"
+			countercodebytes, _ := hex.DecodeString(countercodehex)
+
+			counterConfigCell := cell.BeginCell().
+				MustStoreUInt(10, 32).
+				MustStoreUInt(10, 32).
+				EndCell()
+
+			//counterCodeCell, _ := ByteArrayToCellDictionary(countercodebytes)
+			counterCodeCell, _ := cell.FromBOC(countercodebytes)
+
+			state := &tlb.StateInit{
+				Data: counterConfigCell,
+				Code: counterCodeCell,
+			}
+
+			stateCell, _ := tlb.ToCell(state)
+
+			addr := address.NewAddress(0, 0, stateCell.Hash())
+
+			msgBody := cell.BeginCell().
+				MustStoreUInt(2122802415, 32). // having trouble converting 4byte hex to number, check how to do later
+				MustStoreUInt(69420, 64).
+				MustStoreUInt(23, 32).
+				EndCell()
+
+			amount := tlb.MustFromTON("0.02")
+
+			myMsg := &wallet.Message{
+				Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+				InternalMessage: &tlb.InternalMessage{
+					IHRDisabled: true,
+					Bounce:      false,
+					DstAddr:     addr,
+					Amount:      amount,
+					Body:        msgBody,
+					StateInit:   state,
+				},
+			}
+
+			myMsg.InternalMessage.Payload()
+
+			tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+				Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+				InternalMessage: &tlb.InternalMessage{
+					IHRDisabled: true,
+					Bounce:      false,
+					DstAddr:     addr,
+					Amount:      amount,
+					Body:        msgBody,
+					StateInit:   state,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			---------------------------------------------------------
+			building transaction for "bridge"
+			user mints to pay for transaction
+			user calls tr
+
+			return message from callback transfers tokens
+
+
+			tvm > evm
+
+
+			evm > tvm
+			crosschain tx is call to execute mint
+			callback to transfer tokens
+
+			user > backend > entrypoint > sa > mint token
+	*/
 }
 
 func TestRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
