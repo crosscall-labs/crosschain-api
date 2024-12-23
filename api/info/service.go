@@ -19,6 +19,10 @@ func VersionRequest(r *http.Request, parameters ...interface{}) (interface{}, er
 // 	// migrate from sdk api
 // }
 
+func UserTransactionsRequest(r *http.Request, parameters ...interface{}) (interface{}, error) {
+	return nil, nil
+}
+
 func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
 	var params *utils.AssetInfoRequestParams
 

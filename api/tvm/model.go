@@ -264,3 +264,10 @@ for the escrow the backend needs to generate:
 the backend can simply store the value of the finalized escrow and
 	expiration date to a table and just check the table for easy of user (needs to be fixed later on)
 */
+
+type ViewFunctionResult struct {
+	Success  bool        `json:"success"`
+	ExitCode string      `json:"exit_code"`
+	Stack    [][2]string `json:"stack"`
+	Decoded  interface{} `json:"decoded"`
+}

@@ -155,8 +155,9 @@ type TonTryLocateTx struct {
 
 // method: runGetMethod
 type RunGetMethod struct {
-	Address string `json:"address"` // Required
-	Method  string `json:"method"`  // Required
+	Address string     `json:"address"`         // Required
+	Method  string     `json:"method"`          // Required
+	Stack   [][]string `json:"stack,omitempty"` // Optional array of [][2]string
 }
 
 // method: getMasterchainInfo

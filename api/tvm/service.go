@@ -2,10 +2,12 @@ package tvmHandler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -34,6 +36,39 @@ func InitClient() (context.Context, ton.APIClientWrapped, *wallet.Wallet, error)
 	}
 
 	return ctx, api, backendWallet, nil
+}
+
+func calcJettonWalletAddress(userAddress address.Address, assetAddress address.Address, workchain int64) *cell.Cell {
+	//jettonMinterCode, _ := cell.FromBOC(jettonMinterBocBuffer)
+	jettonWalletCode, _ := cell.FromBOC(jettonWalletBocBuffer)
+	// jettonWalletCodeDict, _ := ByteArrayToCellDictionary(jettonWalletCode.ToRawUnsafe().Data)
+
+	packJettonWalletData := cell.BeginCell().
+		MustStoreCoins(0).
+		MustStoreSlice(userAddress.Data(), userAddress.BitsLen()).
+		MustStoreSlice(assetAddress.Data(), assetAddress.BitsLen()).
+		MustStoreRef(jettonWalletCode).
+		EndCell()
+
+	// packJettonWalletDataDict, _ := ByteArrayToCellDictionary(packJettonWalletData.ToRawUnsafe().Data)
+
+	jettonWalletStateInit := cell.BeginCell().
+		MustStoreUInt(0, 2).
+		MustStoreDict(jettonWalletCode.AsDict(256)).
+		MustStoreDict(packJettonWalletData.AsDict(256)).
+		MustStoreUInt(0, 1).
+		EndCell()
+
+	hashBytes := jettonWalletStateInit.Hash()
+	hashInt := new(big.Int).SetBytes(hashBytes[:])
+
+	jettonWalletAddress := cell.BeginCell().
+		MustStoreUInt(4, 3).
+		MustStoreInt(workchain, 8).
+		MustStoreUInt(hashInt.Uint64(), 256).
+		EndCell()
+
+	return jettonWalletAddress
 }
 
 type TxBlockResponse struct {
@@ -100,18 +135,18 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 	contractAddressRaw := params.AssetAddress
 	contractAddress := address.MustParseAddr(contractAddressRaw)
 
-	userAddressRaw := params.AssetAddress
-	userAddress := address.MustParseAddr(userAddressRaw)
+	userAddressRaw := params.UserAddress
+	//userAddress := address.MustParseAddr(userAddressRaw)
 	jettonAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64)
 	if err != nil {
 		return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
 	}
 
-	queryId := uint64(60)
-	forwardTonAmount := uint64(0)
-	totalTonAmount := uint64(0)
+	queryId := uint64(71)
+	forwardTonAmount := uint64(5000000)
+	totalTonAmount := uint64(10000000)
 
-	msgBody := MintMessage(*userAddress, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
+	msgBody := MintMessage(userAddressRaw, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
 	amount := tlb.MustFromTON("0.01")
 
 	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
@@ -624,6 +659,69 @@ func getTestnetTonx() (string, string, string) {
 	return url, apiKey, jsonrpc
 }
 
+func getUserJettonWallet(url string, apiKey string, jsonrpc string, userAddressRaw string, assetAddressRaw string) (interface{}, error) {
+	userAddress, err := address.ParseAddr(userAddressRaw)
+	if err != nil {
+		log.Fatalf("Failed to parse owner address: %v", err)
+	}
+
+	assetAddress, err := address.ParseAddr(assetAddressRaw)
+	if err != nil {
+		log.Fatalf("Failed to parse owner address: %v", err)
+	}
+
+	userAddressCell := cell.BeginCell().MustStoreAddr(userAddress).EndCell()
+
+	parsedSlice := userAddressCell.BeginParse()
+	userAddressBits := uint(parsedSlice.BitsLeft())
+
+	userAddressSlice, _ := userAddressCell.BeginParse().LoadSlice(userAddressBits)
+	userAddressParam := base64.StdEncoding.EncodeToString(userAddressSlice)
+	fmt.Print(userAddressParam)
+
+	// request := tonx.RunGetMethod{
+	// 	Address: assetAddressRaw,
+	// 	Method:  "get_wallet_address",
+	// 	// Stack: [][]string{
+	// 	// 	{
+	// 	// 		"slice", // type
+	// 	// 		"0QDYIJqX_6t0o74JC-Ok7J-7ZpbOnJOnO4c5mE3R9_yTk-Tw", // base64-encoded user address
+	// 	// 	},
+	// 	// },
+	// }
+
+	// stackParams := []interface{}{
+	// 	[]interface{}{"slice", userAddressSlice}, // Stack with type "slice" and value as userAddressParam
+	// }
+	ctx, api, _, err := InitClient()
+	if err != nil {
+		return nil, err
+	}
+	b := TestnetInfo
+
+	jettonWalletAddress := calcJettonWalletAddress(*userAddress, *assetAddress, int64(b.Workchain))
+
+	// assetAddress = address.MustParseAddr("kQCF-z9-RXDesmTrzHRzGGr8XegUHG8MD7IeTFMbgUGC43vy")
+	// userAddress = address.MustParseAddr("0QAXOW_uAJ1Q-KI4kv4_WShvhENcZ7D2-fjqo9WQkdVi-bU2")
+
+	jettonWalletBOC := jettonWalletAddress.ToBOC()
+	base64Address := base64.StdEncoding.EncodeToString(jettonWalletBOC)
+	fmt.Println("\nJetton Wallet Address (Base64):", base64Address)
+	fmt.Println("\nJetton Wallet Address (Base64):", jettonWalletAddress.Dump())
+
+	c := cell.BeginCell().MustStoreAddr(userAddress).EndCell()
+
+	result, err := api.RunGetMethod(ctx, b, assetAddress, "get_wallet_address", c.ToBOC())
+	if err != nil {
+		fmt.Printf("\n what's left: %v", result)
+		log.Fatalf("\nError executing method: %v", err)
+	}
+	//Print out the result (adjust based on the actual response structure)
+	fmt.Printf("\nExecution Result: %v\n", result)
+
+	return nil, nil
+}
+
 func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestParams) (interface{}, error) {
 	var params *utils.AssetInfoRequestParams
 
@@ -638,64 +736,72 @@ func AssetInfoRequest(r *http.Request, parameters ...*utils.AssetInfoRequestPara
 			return nil, err
 		}
 	}
+	// call tonx to see if user has a jetton wallet
+	// call tonx to see users balance
+	// call tonx to see escrow/sca have jetton wallets
+	// call tonx to see escrow/sca balance
 
 	// need to make the tonx query for all the relevant accounts
 	// need to make a tonx query to view function that takes inputs
-	response := &utils.AssetInfoRequestResponse{}
+
+	// url, apiKey, jsonrpc := getTestnetTonx()
+	// response := &utils.AssetInfoRequestResponse{}
 
 	url, apiKey, jsonrpc := getTestnetTonx()
-	request := tonx.TonRunGetMethod{}
+	getUserJettonWallet(url, apiKey, jsonrpc, params.UserAddress, params.AssetAddress)
 
-	if params.EscrowAddress != "" {
+	// request := tonx.TonRunGetMethod{}
 
-		request = tonx.TonRunGetMethod{
-			Address: params.EscrowAddress,
-			Method:  "get_balance",
-		}
+	// if params.EscrowAddress != "" {
 
-		unparsedResponse, err := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "runGetMethod", request)
-		if err != nil {
-			return nil, fmt.Errorf("tonx request %v failed: %v\n", request, err)
-		}
-		var parsedResponse tonx.TonRunGetMethodResponse
-		if err := json.Unmarshal([]byte(unparsedResponse), &parsedResponse); err != nil {
-			return nil, fmt.Errorf("tonx request %v parsing failed: %v\n", request, err)
-		}
-		escrowBalance := parsedResponse.Result.Stack[0][1]
+	// 	request = tonx.TonRunGetMethod{
+	// 		Address: params.EscrowAddress,
+	// 		Method:  "get_balance",
+	// 	}
 
-		// set the Escrow fields
-		// call to see if escrow exists
-		// call to check current jettons in account
-		// call contract to see amount locked
-		// call contact to see lock deadline
-		response.Escrow = struct {
-			Init         bool   `json:"init"`
-			Balance      string `json:"balance"`
-			LockBalance  string `json:"lock-balance"`
-			LockDeadline string `json:"lock-deadline"`
-		}{
-			Init:         false,
-			Balance:      escrowBalance,
-			LockBalance:  "",
-			LockDeadline: "",
-		}
-	}
+	// 	unparsedResponse, err := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "runGetMethod", request)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("tonx request %v failed: %v\n", request, err)
+	// 	}
+	// 	var parsedResponse tonx.TonRunGetMethodResponse
+	// 	if err := json.Unmarshal([]byte(unparsedResponse), &parsedResponse); err != nil {
+	// 		return nil, fmt.Errorf("tonx request %v parsing failed: %v\n", request, err)
+	// 	}
+	// 	escrowBalance := parsedResponse.Result.Stack[0][1]
 
-	if params.AccountAddress != "" {
-		// set the Account fields
-		// call to see if account exists
-		// call to check current jettons in account
-		// call contract to see amount locked
-		// we don't actually care if the address provided is the signer
-		response.Account = struct {
-			Init    bool   `json:"init"`
-			Balance string `json:"balance"`
-		}{
-			Init:    false,
-			Balance: "",
-		}
-	}
-	return response, nil
+	// 	// set the Escrow fields
+	// 	// call to see if escrow exists
+	// 	// call to check current jettons in account
+	// 	// call contract to see amount locked
+	// 	// call contact to see lock deadline
+	// 	response.Escrow = struct {
+	// 		Init         bool   `json:"init"`
+	// 		Balance      string `json:"balance"`
+	// 		LockBalance  string `json:"lock-balance"`
+	// 		LockDeadline string `json:"lock-deadline"`
+	// 	}{
+	// 		Init:         false,
+	// 		Balance:      escrowBalance,
+	// 		LockBalance:  "",
+	// 		LockDeadline: "",
+	// 	}
+	// }
+
+	// if params.AccountAddress != "" {
+	// 	// set the Account fields
+	// 	// call to see if account exists
+	// 	// call to check current jettons in account
+	// 	// call contract to see amount locked
+	// 	// we don't actually care if the address provided is the signer
+	// 	response.Account = struct {
+	// 		Init    bool   `json:"init"`
+	// 		Balance string `json:"balance"`
+	// 	}{
+	// 		Init:    false,
+	// 		Balance: "",
+	// 	}
+	// }
+	return nil, nil
 }
 
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=f39Fd6e51aad88F6F4ce6aB8827279cffFb92266&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&exe-body=

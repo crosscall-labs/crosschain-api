@@ -21,6 +21,7 @@ func SendTonXRequest(url, apiKey, jsonrpc string, id int, method string, params 
 	if err != nil {
 		return "", fmt.Errorf("error marshalling request data: %v", err)
 	}
+	fmt.Printf("\nrequestData: \n%v", requestData)
 
 	fullURL := fmt.Sprintf("%s/%s", url, apiKey)
 	fmt.Printf("\nrequest url: %s\n\n", fullURL)
