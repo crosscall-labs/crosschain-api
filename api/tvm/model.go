@@ -1,5 +1,7 @@
 package tvmHandler
 
+import "encoding/json"
+
 /*
 tvm message to the entrypoint
 the concept of this message is we describe a message with empty body to transfer funds from the proxy wallet to the solver2.address
@@ -266,8 +268,11 @@ the backend can simply store the value of the finalized escrow and
 */
 
 type ViewFunctionResult struct {
-	Success  bool        `json:"success"`
-	ExitCode string      `json:"exit_code"`
-	Stack    [][2]string `json:"stack"`
-	Decoded  interface{} `json:"decoded"`
+	Success  bool            `json:"success"`
+	ExitCode json.RawMessage `json:"exit_code"` // Handle inconsistent types
+	Stack    []struct {
+		Type string `json:"type"`
+		Cell string `json:"cell"`
+	} `json:"stack"`
+	Decoded interface{} `json:"decoded"`
 }
