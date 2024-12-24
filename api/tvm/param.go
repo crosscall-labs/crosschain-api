@@ -75,13 +75,8 @@ then we need to build a message to this with state_init code
 	         .end_cell();
 	}
 */
-type Signature struct {
-	V uint64
-	R string // hex string
-	S string // hex string
-}
 
-func signatureToCell(signature Signature) (*cell.Cell, error) {
+func signatureToCell(signature SignatureRaw) (*cell.Cell, error) {
 	r := new(big.Int)
 	s := new(big.Int)
 
@@ -92,8 +87,10 @@ func signatureToCell(signature Signature) (*cell.Cell, error) {
 		return nil, fmt.Errorf("invalid S hex string: %s", signature.S)
 	}
 
+	signatureV, _ := strconv.ParseUint(signature.V, 10, 64)
+
 	c := cell.BeginCell().
-		MustStoreUInt(signature.V, 8).
+		MustStoreUInt(signatureV, 8).
 		MustStoreBigInt(r, 256).
 		MustStoreBigInt(s, 256)
 
@@ -121,7 +118,7 @@ func signatureToCell(signature Signature) (*cell.Cell, error) {
 // 	return c.EndCell()
 // }
 
-// export function signMessageDataEth(privateKey: string | bigint, messageData: ExecutionData): Signature {
+// export function signMessageDataEth(privateKey: string | bigint, messageData: ExecutionData): SignatureRaw {
 // 	let slice = beginCell()
 // 							.storeUint(messageData.regime, 1) // 1 bit
 // 							.storeAddress(messageData.destination) // 267 bits
@@ -132,13 +129,6 @@ func signatureToCell(signature Signature) (*cell.Cell, error) {
 // 	const signature = signDataEth(privateKey, messageDataBuffer);
 // 	return signature;
 // }
-
-type ExecutionData struct {
-	Regime      byte             `json:"regime"`
-	Destination *address.Address `json:"target"`
-	Value       uint64           `json:"value"`
-	Body        *cell.Cell       `json:"body"`
-}
 
 func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
 	regime, err := strconv.ParseInt(message.Regime, 16, 8)
@@ -182,16 +172,6 @@ func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
 	}, nil
 }
 
-func ExecutionDataToCell(message ExecutionData) *cell.Cell {
-	c := cell.BeginCell().
-		MustStoreUInt(uint64(uint8(message.Regime)), 8).
-		MustStoreAddr(message.Destination).
-		MustStoreUInt(uint64(message.Value), 64).
-		MustStoreRef(message.Body)
-
-	return c.EndCell()
-}
-
 func ExecutionDataHash(message ExecutionDataParams) ([]byte, error) {
 	executionData, err := ToExecutionData(message)
 	if err != nil {
@@ -211,25 +191,6 @@ func hashCellWithEthereumPrefix(cellData []byte) ([]byte, error) {
 	finalHash := sha3.NewLegacyKeccak256()
 	finalHash.Write(prefixedMessage)
 	return finalHash.Sum(nil), nil
-}
-
-type ProxyWalletMessage struct {
-	QueryId   uint64
-	Signature Signature
-	Data      ExecutionData
-}
-
-func proxyWalletMessageToCell(message ProxyWalletMessage) *cell.Cell {
-	signatureCell, _ := signatureToCell(message.Signature)
-	executionDataCell := ExecutionDataToCell(message.Data)
-
-	c := cell.BeginCell().
-		MustStoreUInt(11, 32).
-		MustStoreUInt(message.QueryId, 64).
-		MustStoreRef(signatureCell).
-		MustStoreRef(executionDataCell)
-
-	return c.EndCell()
 }
 
 func PackProxyWalletData(nonce uint64, entrypointAddress *address.Address, ownerEvmAddress uint64, ownerTvmAddress *address.Address) *cell.Cell {
@@ -270,7 +231,7 @@ func entrypointMessageWithProxyInit(
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
 	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
-	proxyWalletMsgCell := proxyWalletMessageToCell(message)
+	proxyWalletMsgCell := ProxyWalletMessageToCell(message)
 
 	proxyBody := cell.BeginCell().
 		MustStoreRef(stateInit).
@@ -301,7 +262,7 @@ func entrypointMessageWithoutProxyInit(
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
 	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
-	proxyWalletMsgCell := proxyWalletMessageToCell(message)
+	proxyWalletMsgCell := ProxyWalletMessageToCell(message)
 
 	entrypointBody := cell.BeginCell().
 		MustStoreAddr(proxyAddress).
@@ -879,42 +840,42 @@ type UnsignedEscrowRequestParams struct {
 }
 
 // Start of UnsignedEntryPointRequestParams
-type UnsignedEntryPointRequestParams struct {
-	Header      utils.MessageHeader `query:"header"`
-	ProxyParams ProxyParams         `query:"proxy"`
-}
+// type UnsignedEntryPointRequestParams struct {
+// 	Header      utils.MessageHeader `query:"header"`
+// 	ProxyParams ProxyParams         `query:"proxy"`
+// }
 
-type ProxyParams struct {
-	ProxyHeader     ProxyHeaderParams   `query:"p-header"`
-	ExecutionData   ExecutionDataParams `query:"p-exe"`
-	WithProxyInit   string              `query:"p-init"` // Required: Initalize the proxy wallet
-	ProxyWalletCode string              `query:"p-code" optional:"true"`
-	WorkChain       string              `query:"p-workchain" optional:"true"` // assume 0 for testnet atm
-}
+// type ProxyParams struct {
+// 	ProxyHeader     ProxyHeaderParams   `query:"p-header"`
+// 	ExecutionData   ExecutionDataParams `query:"p-exe"`
+// 	WithProxyInit   string              `query:"p-init"` // Required: Initalize the proxy wallet
+// 	ProxyWalletCode string              `query:"p-code" optional:"true"`
+// 	WorkChain       string              `query:"p-workchain" optional:"true"` // assume 0 for testnet atm
+// }
 
-type ProxyHeaderParams struct {
-	Nonce           string `query:"p-nonce" optional:"true"`
-	EntryPoint      string `query:"p-entrypoint" optional:"true"` // possible that a better one is accepted in the future
-	PayeeAddress    string `query:"p-payee" optional:"true"`      // solver is us for now
-	OwnerEvmAddress string `query:"p-evm"`                        // easy to derive
-	OwnerTvmAddress string `query:"p-tvm" optional:"true"`        // our social login SHOULD generate this
-}
+// type ProxyHeaderParams struct {
+// 	Nonce           string `query:"p-nonce" optional:"true"`
+// 	EntryPoint      string `query:"p-entrypoint" optional:"true"` // possible that a better one is accepted in the future
+// 	PayeeAddress    string `query:"p-payee" optional:"true"`      // solver is us for now
+// 	OwnerEvmAddress string `query:"p-evm"`                        // easy to derive
+// 	OwnerTvmAddress string `query:"p-tvm" optional:"true"`        // our social login SHOULD generate this
+// }
 
-type ExecutionDataParams struct {
-	Regime      string `query:"exe-regime" optional:"true"`
-	Destination string `query:"exe-target" optional:"true"`
-	Value       string `query:"exe-value" optional:"true"`
-	Body        string `query:"exe-body" optional:"true"`
-}
+// type ExecutionDataParams struct {
+// 	Regime      string `query:"exe-regime" optional:"true"`
+// 	Destination string `query:"exe-target" optional:"true"`
+// 	Value       string `query:"exe-value" optional:"true"`
+// 	Body        string `query:"exe-body" optional:"true"`
+// }
 
-// UnsignedEntryPointRequestResponse:
-type MessageOpTvm struct {
-	Header       utils.MessageHeader `json:"header"`
-	ProxyParams  ProxyParams         `json:"proxy"`
-	ProxyAddress string              `json:"proxy-address"`
-	ValueNano    string              `json:"value"`
-	MessageHash  string              `json:"hash"`
-}
+// // UnsignedEntryPointRequestResponse:
+// type MessageOpTvm struct {
+// 	Header       utils.MessageHeader `json:"header"`
+// 	ProxyParams  ProxyParams         `json:"proxy"`
+// 	ProxyAddress string              `json:"proxy-address"`
+// 	ValueNano    string              `json:"value"`
+// 	MessageHash  string              `json:"hash"`
+// }
 
 // End of UnsignedEntryPointRequestParams
 

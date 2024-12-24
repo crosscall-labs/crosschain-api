@@ -635,3 +635,32 @@ func GetChainType(chainId string) (string, string, error) {
 
 	return "", "", fmt.Errorf("unsupporting chain id: %s", chainId)
 }
+
+func HexToUint64(hexStr string) (uint64, error) {
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode hex: %w", err)
+	}
+
+	if len(bytes) > 8 {
+		return 0, fmt.Errorf("hex value too large for uint64")
+	}
+
+	var value uint64
+	for _, b := range bytes {
+		value = (value << 8) | uint64(b)
+	}
+	return value, nil
+}
+
+func BytesToUint64(bytes []byte) (uint64, error) {
+	if len(bytes) > 8 {
+		return 0, fmt.Errorf("hex value too large for uint64")
+	}
+
+	var value uint64
+	for _, b := range bytes {
+		value = (value << 8) | uint64(b)
+	}
+	return value, nil
+}
