@@ -2,6 +2,7 @@ package tvmHandler
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -56,22 +57,17 @@ func ValidateEvmEcdsaSignature(hash []byte, signature []byte, address common.Add
 		return false, fmt.Errorf("invalid signature length: %d", len(signature))
 	}
 
-	r := signature[:32]
-	s := signature[32:64]
-	v := signature[64]
+	header, _ := hex.DecodeString("19457468657265756d205369676e6564204d6573736167653a0a3332")
+	ethHash := append(header, hash...)
+	unsignedHash := crypto.Keccak256(ethHash)
 
-	// Adjust the recovery ID (v) to be compatible with go-ethereum
-	// v should be either 27/28 or 0/1. For go-ethereum, we use 0/1.
-	if v >= 27 {
-		v -= 27
-	}
-
-	canonicalSig := append(append(r, s...), v)
-	pubKey, err := crypto.SigToPub(hash, canonicalSig)
+	recoveredPubKey, err := crypto.SigToPub(unsignedHash, signature)
 	if err != nil {
 		return false, fmt.Errorf("failed to recover public key: %w", err)
 	}
+	recoveredAddress := crypto.PubkeyToAddress(*recoveredPubKey)
 
-	recoveredAddress := crypto.PubkeyToAddress(*pubKey)
+	fmt.Printf("\nrecovered address: %v", recoveredAddress.Hex())
+	fmt.Printf("\nexpected address: %v", address.Hex())
 	return bytes.Equal(recoveredAddress.Bytes(), address.Bytes()), nil
 }

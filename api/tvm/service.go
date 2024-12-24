@@ -89,7 +89,11 @@ type ParsedBlock struct {
 	FileHash  string `json:"file_hash"`
 }
 
-func ParseTxBlockResponse(tx *tlb.Transaction, block *ton.BlockIDExt, err error) TxBlockResponse {
+func ParseTxBlockResponse(tx *tlb.Transaction, block *ton.BlockIDExt) TxBlockResponse {
+	fmt.Print("\nI got this far4")
+	fmt.Printf("\ntx:\n%v", tx)
+	fmt.Printf("\nlock:\n%v", block)
+
 	return TxBlockResponse{
 		Tx: ParsedTransaction{
 			LT:   strconv.FormatUint(tx.LT, 10),
@@ -156,7 +160,7 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 		},
 	})
 
-	return ParseTxBlockResponse(tx, block, err), nil
+	return ParseTxBlockResponse(tx, block), nil
 }
 
 // now that we have a way to execute, deploy + execute, view, we can formulate and execute the escrow request
@@ -190,12 +194,12 @@ func UnsignedEscrowRequest(r *http.Request, parameters ...*UnsignedEscrowRequest
 	return MessageEscrowTvm{}, nil
 }
 
-func calculateProxyWalletAddress(nonce uint64, entrypointAddress address.Address, evmAddressBigInt *big.Int, tvmAddress address.Address, workchain byte) (*address.Address, *tlb.StateInit) {
+func calculateProxyWalletAddress(nonce uint64, entrypointAddress *address.Address, evmAddressBigInt *big.Int, tvmAddress *address.Address, workchain byte) (*address.Address, *tlb.StateInit) {
 	proxyWalletConfigCell := cell.BeginCell().
 		MustStoreUInt(nonce, 64).
-		MustStoreAddr(&entrypointAddress).
+		MustStoreAddr(entrypointAddress).
 		MustStoreUInt(evmAddressBigInt.Uint64(), 160).
-		MustStoreAddr(&tvmAddress).
+		MustStoreAddr(tvmAddress).
 		EndCell()
 
 	proxyWalletCodeCell, _ := cell.FromBOC(proxyWalletBocBuffer)

@@ -55,6 +55,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			response, err = UnsignedEntryPointRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
 			return
+		case "signed-entrypoint-request":
+			response, err = SignedEntryPointRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
+		case "swap-to-data-info":
+			response, err = UnsignedMintToRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
+		case "swap-from-data-info":
+			response, err = UnsignedMintFromRequest(r)
+			HandleResponse(w, r, supabaseClient, response, err)
+			return
 		case "asset-info":
 			response, err = AssetInfoRequest(r)
 			HandleResponse(w, r, supabaseClient, response, err)
@@ -104,16 +116,15 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 func HandleResponse(w http.ResponseWriter, r *http.Request, supabaseClient *supabase.Client, response interface{}, err error) {
 	if err != nil {
-		// if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
-		// 	fmt.Printf("Failed to log error: %v\n", logErr.Error())
-		// }
+		if logErr := db.LogError(supabaseClient, err, r.URL.Query().Get("query"), response); logErr != nil {
+			fmt.Printf("Failed to log error: %v\n", logErr.Error())
+		}
 
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(utils.ErrInternal(err.Error()))
+		json.NewEncoder(w).Encode(err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
