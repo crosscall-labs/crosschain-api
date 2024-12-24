@@ -296,6 +296,14 @@ type UnsignedMintToRequestParams struct {
 	AssetAmount  string `query:"asset-amount"`
 }
 
+type UnsignedMintToRequestResponse struct {
+	Regime      string `json:"regime"`
+	Destination string `json:"destination"`
+	Value       string `json:"value"`
+	Body        string `json:"body"`
+	Hash        string `json:"hash"`
+}
+
 func UnsignedMintToRequest(r *http.Request, parameters ...*UnsignedMintToRequestParams) (interface{}, error) {
 	var params *UnsignedMintToRequestParams
 
@@ -311,7 +319,8 @@ func UnsignedMintToRequest(r *http.Request, parameters ...*UnsignedMintToRequest
 		}
 	}
 
-	assetAddress := address.MustParseAddr(params.ProxyParams)
+	userAddress := address.MustParseAddr(params.UserAddress)
+	assetAddress := address.MustParseAddr(params.AssetAddress)
 	assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64) // amount to be receieved
 	if err != nil {
 		return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
@@ -319,23 +328,18 @@ func UnsignedMintToRequest(r *http.Request, parameters ...*UnsignedMintToRequest
 	queryId := uint64(72)
 	forwardTonAmount := uint64(5000000)
 	totalTonAmount := uint64(10000000)
-	executionData, messageHash, err := CreateUnsignedMintCall(*tvmAddress, queryId, assetAmount, forwardTonAmount, *assetAddress, totalTonAmount)
+	executionData, messageHash, err := CreateUnsignedMintCall(*userAddress, queryId, assetAmount, forwardTonAmount, *assetAddress, totalTonAmount)
 	if err != nil {
 		return nil, utils.ErrInternal(err.Error())
 	}
-	// type ExecutionData struct {
-	// 	Regime      byte             `json:"regime"`
-	// 	Destination *address.Address `json:"target"`
-	// 	Value       uint64           `json:"value"`
-	// 	Body        *cell.Cell       `json:"body"`
-	// }
-	hex.EncodeToString(executionData.Regime)
-	executionData.Destination.String()
-	strconv.ParseUint(executionData.Value, 10, 64)
-	executionData.Body.ToBOC()
-	hex.EncodeToString(messageHash)
 
-	return nil, nil
+	return UnsignedMintToRequestResponse{
+		Regime:      fmt.Sprint(executionData.Regime),
+		Destination: executionData.Destination.String(),
+		Value:       fmt.Sprint(executionData.Value),
+		Body:        hex.EncodeToString(executionData.Body.ToBOC()),
+		Hash:        hex.EncodeToString(messageHash),
+	}, nil
 }
 
 func UnsignedMintFromRequest(r *http.Request, parameters ...*UnsignedEntryPointRequestParams) (interface{}, error) {
@@ -379,12 +383,6 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("\nvalue of params.ProxyParams.WithProxyInit: %v\n", params.ProxyParams.WithProxyInit)
-
-	withProxyInit, err := strconv.ParseBool(params.ProxyParams.WithProxyInit)
-	if err != nil {
-		return nil, err
-	}
 
 	nonce, err := strconv.ParseUint(params.ProxyParams.ProxyHeader.Nonce, 10, 64)
 	if err != nil {
@@ -402,63 +400,23 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 
 	tvmAddress := address.MustParseAddr(params.ProxyParams.ProxyHeader.OwnerTvmAddress)
 
-	proxyWalletAddress, state := calculateProxyWalletAddress(nonce, *entrypointAddress, evmAddressBigInt, *tvmAddress, byte(b.Workchain))
+	proxyWalletAddress, _ := calculateProxyWalletAddress(nonce, *entrypointAddress, evmAddressBigInt, *tvmAddress, byte(b.Workchain))
 	// call get_wallet_info, if fails, wallet is not init
 	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
 		isInit = false
 	}
 
 	executionData, err := ToExecutionData(params.ProxyParams.ExecutionData)
+	if err != nil {
+		return nil, utils.ErrInternal(err.Error())
+	}
 	messageHash := executionData.Body.Hash()
 	messageHashEth, err := hashCellWithEthereumPrefix(messageHash)
-
-	// assetAddress := address.MustParseAddr(params.ProxyParams.)
-	// assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64) // amount to be receieved
-	// if err != nil {
-	// 	return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
-	// }
-	// queryId := uint64(72)
-	// forwardTonAmount := uint64(5000000)
-	// totalTonAmount := uint64(10000000)
-	// executionData, messageHash, err := CreateUnsignedMintCall(*tvmAddress, queryId, assetAmount, forwardTonAmount, *assetAddress, totalTonAmount)
-	// if err != nil {
-	// 	return nil, utils.ErrInternal(err.Error())
-	// }
-
-	value, _ := strconv.Atoi(params.ProxyParams.ExecutionData.Value)
-	if withProxyInit {
-		// fmt.Print("\ninside of withproxyinit")
-		// url := os.Getenv("TONX_API_BASE_TESTNET_URL")
-		// apiKey := os.Getenv("TONX_TESTNET_API_KEY_1")
-		// jsonrpc := os.Getenv("TONX_API_JSONRPC")
-
-		// proxyWalletData := PackProxyWalletData(0, entryPointAddress, ownerEvmAddress, ownerTvmAddress)
-
-		// cell.BeginCell().EndCell().ToBOC()
-
-		// request := tonx.TonEstimateFee{
-		// 	Address: proxyAddress.String(),
-		// 	Body:    hex.EncodeToString(hex.EncodeToString(proxyInit.ToBOC())),
-		// 	InitCode: proxyWalletCodeHex,
-		// 	InitData: proxyWalletData,
-		// }
-
-		// response, _ := tonx.SendTonXRequest(url, apiKey, jsonrpc, 1, "estimateFee", request)
-		// var parsedResponse tonx.TonEstimateFeeResponse
-		// if err := json.Unmarshal([]byte(response), &parsedResponse); err != nil {
-		// 	fmt.Printf("Error parsing response: %v\n", err)
-		// 	return nil, err
-		// }
-
-		// fmt.Printf("\nfee estimation: \n%v\n", request)
-
-		value += 100000000 + 100000000
-	} else {
-		value += 100000000
+	if err != nil {
+		return nil, utils.ErrInternal(err.Error())
 	}
 
-	// thingy := cell.BeginCell().EndCell()
-	// fmt.Printf("cell thing\n%v\n", hex.EncodeToString(thingy.ToBOC())) //-> b5ee9c724101010100020000004cacb9cd
+	value := executionData.Value + tlb.MustFromTON("0.02").Nano().Uint64()
 
 	fmt.Print(params.Header)
 	return MessageOpTvm{
@@ -471,28 +429,13 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 				OwnerEvmAddress: params.ProxyParams.ProxyHeader.OwnerEvmAddress,
 				OwnerTvmAddress: params.ProxyParams.ProxyHeader.OwnerTvmAddress,
 			},
-			ExecutionData: ExecutionDataParams{
-				Regime:      "0",
-				Destination: params.ProxyParams.ExecutionData.Destination,
-				Value: func() string {
-					if params.ProxyParams.ExecutionData.Value == "" {
-						return "0"
-					}
-					return params.ProxyParams.ExecutionData.Value
-				}(),
-				Body: func() string {
-					if params.ProxyParams.ExecutionData.Body == "" || params.ProxyParams.ExecutionData.Body == "00" {
-						return "b5ee9c724101010100020000004cacb9cd"
-					}
-					return params.ProxyParams.ExecutionData.Body
-				}(),
-			},
-			WithProxyInit:   params.ProxyParams.WithProxyInit,
-			ProxyWalletCode: hex.EncodeToString(proxyInit.ToBOC()),
+			ExecutionData:   params.ProxyParams.ExecutionData,
+			WithProxyInit:   strconv.FormatBool(isInit),
+			ProxyWalletCode: "",
 			WorkChain:       params.ProxyParams.WorkChain,
 		},
 		ProxyAddress: proxyWalletAddress.String(),
-		ValueNano:    big.NewInt(int64(value)).String(), // default to 0.1 ton
+		ValueNano:    strconv.FormatUint(value, 10),
 		MessageHash:  hex.EncodeToString(messageHashEth),
 	}, nil
 }
