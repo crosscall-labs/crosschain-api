@@ -11,6 +11,7 @@ import (
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -100,13 +101,13 @@ func CreateUnsignedMintCall(
 
 	/// start with  a5b70ca6d63a158f2d5ef3965f1fac9eb23498040e0066896cd18c0c5f7e670c
 	/// end with    61aad896921377300b1b735cd47a8939e2cddabf700fc6c7e9fe391660b35474
-	qwerty, _ := hex.DecodeString("a5b70ca6d63a158f2d5ef3965f1fac9eb23498040e0066896cd18c0c5f7e670c")
-	qwerty2, _ := hashCellWithEthereumPrefix(qwerty)
-	fmt.Printf("\nmessage hash before eth: %v", hex.EncodeToString(qwerty))
-	fmt.Printf("\nmessage hash after eth:  %v", hex.EncodeToString(qwerty2))
-	fmt.Printf("\nsupposed to be:  %v", "61aad896921377300b1b735cd47a8939e2cddabf700fc6c7e9fe391660b35474")
+	// qwerty, _ := hex.DecodeString("a5b70ca6d63a158f2d5ef3965f1fac9eb23498040e0066896cd18c0c5f7e670c")
+	// qwerty2, _ := hashCellWithEthereumPrefix(qwerty)
+	// fmt.Printf("\nmessage hash before eth: %v", hex.EncodeToString(qwerty))
+	// fmt.Printf("\nmessage hash after eth:  %v", hex.EncodeToString(qwerty2))
+	// fmt.Printf("\nsupposed to be:  %v", "61aad896921377300b1b735cd47a8939e2cddabf700fc6c7e9fe391660b35474")
 
-	messageHash := executionData.Body.Hash()
+	messageHash := ExecutionDataToCell(executionData).Hash()
 
 	return executionData, messageHash
 }
@@ -150,10 +151,11 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	}
 	ctx, api, w, err := InitClient()
 	if err != nil {
+		fmt.Print(w)
 		return nil, err
 	}
 	nonce := 0
-	entrypointAddress := address.MustParseAddr("EQCjyLHEhFEAVFSaoCEcSLx95yuEA4Eh1z1Ge7woXBYwx3i4")
+	entrypointAddress := address.MustParseAddr("kQD-99yAg5IsTqRt2qiw1IDkEexCXcaaGmMU-MPhL74cHwCM")
 	b, err := api.GetMasterchainInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -167,9 +169,12 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		return nil, utils.ErrInternal(fmt.Errorf("invalid address: exceeds 160 bits").Error())
 	}
 	tvmAddress := address.MustParseAddr(params.TvmAddress)
-	proxyWalletAddress, _ := calculateProxyWalletAddress(uint64(nonce), entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
+	proxyWalletAddress, state := calculateProxyWalletAddress(uint64(nonce), entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
+	fmt.Print(state)
+	fmt.Printf("\nevm address bigint: %v", evmAddressBigInt)
 	// call get_wallet_info, if fails, wallet is not init
 	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
+		fmt.Printf("\nproxy wallet address: %v\n", proxyWalletAddress.String())
 		isInit = false
 	}
 
@@ -201,9 +206,16 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	if err != nil {
 		return nil, utils.ErrInternal(fmt.Sprintf("invalid sig-s value: %v", err.Error()))
 	}
+
+	if signature.V >= 27 {
+		signature.V -= 27
+	}
+
 	signature.S, _ = utils.BytesToUint64(signatureR)
 	signatureBytes := append(signatureR, signatureS...)
 	signatureBytes = append(signatureBytes, byte(signature.V))
+
+	fmt.Print("\nabout to print ValidateEvmEcdsaSignature")
 	if ok, err := ValidateEvmEcdsaSignature(messageHash, signatureBytes, evmAddress); !ok || err != nil {
 		if err != nil {
 			return nil, utils.ErrInternal(fmt.Sprintf("Error validating signature: %v\n", err))
@@ -213,73 +225,87 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	}
 
 	proxyWalletMessage := ProxyWalletMessage{
-		QueryId:   0,
+		QueryId:   1,
 		Signature: signature,
 		Data:      executionData,
 	}
 
 	proxyMessage := &tlb.InternalMessage{}
-	proxyMessage = &tlb.InternalMessage{
-		IHRDisabled: true,
-		Bounce:      false,
-		DstAddr:     proxyWalletAddress,
-		Amount:      tlb.FromNanoTONU(executionData.Value),
-		Body:        ProxyWalletMessageToCell(proxyWalletMessage),
-	}
-	fmt.Print(proxyMessage)
-	// if isInit {
-	// 	proxyMessage = &tlb.InternalMessage{
-	// 		IHRDisabled: true,
-	// 		Bounce:      false,
-	// 		DstAddr:     proxyWalletAddress,
-	// 		Amount:      tlb.FromNanoTONU(executionData.Value),
-	// 		Body:        ProxyWalletMessageToCell(proxyWalletMessage),
-	// 	}
-	// } else {
-	// 	proxyMessage = &tlb.InternalMessage{
-	// 		IHRDisabled: true,
-	// 		Bounce:      false,
-	// 		DstAddr:     proxyWalletAddress,
-	// 		Amount:      tlb.FromNanoTONU(executionData.Value),
-	// 		Body:        ProxyWalletMessageToCell(proxyWalletMessage),
-	// 		StateInit:   state,
-	// 	}
+	// proxyMessage = &tlb.InternalMessage{
+	// 	IHRDisabled: true,
+	// 	Bounce:      false,
+	// 	DstAddr:     proxyWalletAddress,
+	// 	Amount:      tlb.FromNanoTONU(executionData.Value),
+	// 	Body:        ProxyWalletMessageToCell(proxyWalletMessage),
 	// }
+	fmt.Print(proxyMessage)
+	if isInit {
+		proxyMessage = &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     proxyWalletAddress,
+			Amount:      tlb.FromNanoTONU(executionData.Value),
+			Body:        ProxyWalletMessageToCell(proxyWalletMessage),
+		}
+	} else {
+		proxyMessage = &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     proxyWalletAddress,
+			Amount:      tlb.FromNanoTONU(executionData.Value),
+			Body:        ProxyWalletMessageToCell(proxyWalletMessage),
+			StateInit:   state,
+		}
+	}
 
-	// txproxy, blockproxy, _ := w.SendWaitTransaction(ctx, &wallet.Message{
-	// 	Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
-	// 	InternalMessage: &tlb.InternalMessage{
-	// 		IHRDisabled: true,
-	// 		Bounce:      false,
-	// 		DstAddr:     proxyWalletAddress,
-	// 		Amount:      tlb.MustFromTON("0.1"),
-	// 		Body:        cell.BeginCell().EndCell(),
-	// 		StateInit:   state,
-	// 	},
-	// })
+	var txproxy *tlb.Transaction
+	var blockproxy *ton.BlockIDExt
+	var tx *tlb.Transaction
+	var block *ton.BlockIDExt
+	if !isInit {
+		fmt.Print(txproxy)
+		fmt.Print(blockproxy)
+		fmt.Print(tx)
+		fmt.Print(block)
+		txproxy, blockproxy, err = w.SendWaitTransaction(ctx, &wallet.Message{
+			Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     proxyWalletAddress,
+				Amount:      tlb.MustFromTON("0.15"),
+				Body:        ProxyWalletMessageToCell(proxyWalletMessage),
+				StateInit:   state,
+			},
+		})
+		if err != nil {
+			fmt.Printf("\nI got this error: %v", err)
+		}
+	}
 
 	entrypointMessage := EntrypointMessage{
 		Destination: proxyWalletAddress,
 		Body:        ProxyWalletMessageToCell(proxyWalletMessage),
 	}
+	fmt.Print(entrypointMessage)
 
-	tx, block, _ := w.SendWaitTransaction(ctx, &wallet.Message{
-		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     entrypointAddress,
-			Amount:      tlb.MustFromTON("0.2"),
-			Body:        EntrypointMessageToCell(entrypointMessage, queryId),
-		},
-	})
+	// tx, block, _ = w.SendWaitTransaction(ctx, &wallet.Message{
+	// 	Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+	// 	InternalMessage: &tlb.InternalMessage{
+	// 		IHRDisabled: true,
+	// 		Bounce:      false,
+	// 		DstAddr:     entrypointAddress,
+	// 		Amount:      tlb.MustFromTON("0.2"),
+	// 		Body:        EntrypointMessageToCell(entrypointMessage, queryId),
+	// 	},
+	// })
 
 	return struct {
 		Tx []TxBlockResponse
 	}{
 		Tx: []TxBlockResponse{
-			// ParseTxBlockResponse(txproxy, blockproxy),
-			ParseTxBlockResponse(tx, block),
+			ParseTxBlockResponse(txproxy, blockproxy),
+			// ParseTxBlockResponse(tx, block),
 		},
 	}, nil
 }
@@ -337,9 +363,18 @@ type UnsignedMintToRequestResponse struct {
 	Hash        string `json:"hash"`
 }
 
+// absolutely works!!!
+//newest jetton (jetton minter) address: EQBMNUHziiUIUT_rHOpcAGF_IMT8flnnQQxfwu0jQLXVJJIW
+
 //http://localhost:8080/api/tvm?query=swap-to-data-info&chain-id=1667471769&user-address=kQAqU-Wt4oIYMD-NRg803-rAoUaEHfdaUVZXY1fLVe0CoTlG&asset-address=kQCF-z9-RXDesmTrzHRzGGr8XegUHG8MD7IeTFMbgUGC43vy&asset-amount=100000000000
 
+// newest
+//http://localhost:8080/api/tvm?query=swap-to-data-info&chain-id=1667471769&user-address=kQAqU-Wt4oIYMD-NRg803-rAoUaEHfdaUVZXY1fLVe0CoTlG&asset-address=EQBMNUHziiUIUT_rHOpcAGF_IMT8flnnQQxfwu0jQLXVJJIW&asset-amount=100000000000
+
 //http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=ED81eFe292283f031CF49d5aBC24A988dABC0e2B&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=ED81eFe292283f031CF49d5aBC24A988dABC0e2B&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&exe-target=EQAW3iupIDrCICc7SbcY_SBP6jCNO-F8v91dG9XNLHw-lE9k&exe-value=200000000&p-nonce=0&exe-regime=0&exe-target=kQCF-z9-RXDesmTrzHRzGGr8XegUHG8MD7IeTFMbgUGC43vy&exe-value=20000000&exe-body=b5ee9c7241010301009700016d00000015000000000000004880054a7cb5bc50430607f1a8c1e69bfd581428d083beeb4a2acaec6af96abda05427312d00a2e90edd00100101af178d451900000000000000485174876e800800f5c76f48954433b8e0b6b0830f0d361d72d5ca440d546794baeb211a6865f7f700217ecfdf915c37ac993af31d1cc61abf177a05071bc303ec879314c6e05060b8cd312d03020000ba199643
+
+// newest
+//http://localhost:8080/api/tvm?query=unsigned-entrypoint-request&txtype=1&fid=11155111&fsigner=ED81eFe292283f031CF49d5aBC24A988dABC0e2B&tid=1667471769&tsigner=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&p-init=false&p-workchain=-1&p-evm=ED81eFe292283f031CF49d5aBC24A988dABC0e2B&p-tvm=UQAzC1P9oEQcVzKIOgyVeidkJlWbHGXvbNlIute5W5XHwNgf&&p-nonce=0&exe-regime=0&exe-target=EQBMNUHziiUIUT_rHOpcAGF_IMT8flnnQQxfwu0jQLXVJJIW&exe-value=200000000&exe-body=b5ee9c7241010301009700016d00000015000000000000004880054a7cb5bc50430607f1a8c1e69bfd581428d083beeb4a2acaec6af96abda05427312d00a2e90edd00100101af178d451900000000000000485174876e800800f5c76f48954433b8e0b6b0830f0d361d72d5ca440d546794baeb211a6865f7f700130d507ce28942144ffac73a9700185fc8313f1f9679d04317f0bb48d02d75490d312d0302000014bf99a5
 
 //http://localhost:8080/api/tvm?query=signed-entrypoint-request
 //&evm-address=ED81eFe292283f031CF49d5aBC24A988dABC0e2B&tvm-address=kQAqU-Wt4oIYMD-NRg803-rAoUaEHfdaUVZXY1fLVe0CoTlG&asset-address=kQCF-z9-RXDesmTrzHRzGGr8XegUHG8MD7IeTFMbgUGC43vy&asset-amount=100000000000
@@ -481,7 +516,7 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	}
 
 	tvmAddress := address.MustParseAddr(params.ProxyParams.ProxyHeader.OwnerTvmAddress)
-	proxyWalletAddress, _ := calculateProxyWalletAddress(nonce, *entrypointAddress, evmAddressBigInt, *tvmAddress, byte(b.Workchain))
+	proxyWalletAddress, _ := calculateProxyWalletAddress(nonce, entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
 	// call get_wallet_info, if fails, wallet is not init
 	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
 		isInit = false
@@ -493,15 +528,12 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		return nil, utils.ErrInternal(err.Error())
 	}
 	fmt.Print("\ngot over here")
-	messageHash := executionData.Body.Hash()
-	fmt.Print("\ngot over here")
-	messageHashEth, err := hashCellWithEthereumPrefix(messageHash)
-	if err != nil {
-		return nil, utils.ErrInternal(err.Error())
-	}
-	fmt.Print("\ngot over here")
+	messageHash := ExecutionDataToCell(executionData).Hash()
+	// messageHashEth, err := hashCellWithEthereumPrefix(messageHash)
+	// if err != nil {
+	// 	return nil, utils.ErrInternal(err.Error())
+	// } // this is used to create the exact format but already auto performed by EVM wallets
 	value := executionData.Value + tlb.MustFromTON("0.02").Nano().Uint64()
-	fmt.Print("\ngot over here")
 	fmt.Print(params.Header)
 	return MessageOpTvm{
 		Header: params.Header,
@@ -520,6 +552,6 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 		},
 		ProxyAddress: proxyWalletAddress.String(),
 		ValueNano:    strconv.FormatUint(value, 10),
-		MessageHash:  hex.EncodeToString(messageHashEth),
+		MessageHash:  hex.EncodeToString(messageHash),
 	}, nil
 }

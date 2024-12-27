@@ -1,7 +1,6 @@
 package tvmHandler
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -131,6 +130,7 @@ func signatureToCell(signature SignatureRaw) (*cell.Cell, error) {
 // }
 
 func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
+	fmt.Printf("\nexecution data inside of toexecutiondata: %v\n", message)
 	regime, err := strconv.ParseInt(message.Regime, 16, 8)
 	if err != nil {
 		return ExecutionData{}, fmt.Errorf("regime could not be parsed: %v", err)
@@ -139,30 +139,21 @@ func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
 	if err != nil {
 		return ExecutionData{}, fmt.Errorf("destination could not be parsed: %v", err)
 	}
-	value, err := func() (int64, error) {
-		if message.Value == "" {
-			return 0, nil
-		}
-		return strconv.ParseInt(message.Value, 10, 64)
-	}()
+	value, err := strconv.ParseInt(message.Value, 10, 64)
 	if err != nil {
 		return ExecutionData{}, fmt.Errorf("value could not be parsed: %v", err)
 	}
 
 	bodyBytes, err := hex.DecodeString(message.Body)
-	if message.Body == "" || err == nil && len(bodyBytes) > 0 && bytes.Equal(bodyBytes, make([]byte, len(bodyBytes))) {
-		return ExecutionData{
-			Regime:      byte(uint8(regime)),
-			Destination: destination,
-			Value:       uint64(value),
-			Body:        cell.BeginCell().EndCell(),
-		}, nil
+	if err != nil {
+		return ExecutionData{}, fmt.Errorf("body could not be parsed: %v", err)
 	}
 
 	body, err := cell.FromBOC(bodyBytes)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("body cell could not be parsed: %v", err)
+		return ExecutionData{}, fmt.Errorf("body invalid cell: %v", err)
 	}
+	fmt.Printf("\nbody: %v", body)
 
 	return ExecutionData{
 		Regime:      byte(uint8(regime)),
@@ -334,12 +325,12 @@ func connectToClient(config string) (context.Context, ton.APIClientWrapped, erro
 
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("get config err: ", err.Error())
+		return nil, nil, err
 	}
 
 	err = client.AddConnectionsFromConfig(context.Background(), cfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("connection err: ", err.Error())
+		return nil, nil, err
 	}
 
 	api := ton.NewAPIClient(client, ton.ProofCheckPolicyFast).WithRetry()
@@ -350,7 +341,18 @@ func connectToClient(config string) (context.Context, ton.APIClientWrapped, erro
 }
 
 func ConnectToTestnetClient() (context.Context, ton.APIClientWrapped, error) {
-	return connectToClient("https://ton.org/testnet-global.config.json")
+	ctx, client, err := connectToClient("https://ton.org/testnet-global.config.json")
+	if err != nil {
+		fmt.Printf("Error connecting to primary client: %v\n", err) // Log the error
+
+		// Attempt the fallback
+		ctx, client, fallbackErr := connectToClient("https://ton-blockchain.github.io/testnet-global.config.json")
+		if fallbackErr != nil {
+			return nil, nil, fmt.Errorf("both connections failed: primary error: %v, fallback error: %v", err, fallbackErr)
+		}
+		return ctx, client, nil
+	}
+	return ctx, client, nil
 }
 
 func ConnectToMainnetClient() (context.Context, ton.APIClientWrapped, error) {
