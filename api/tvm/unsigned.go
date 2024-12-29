@@ -148,7 +148,9 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		fmt.Print(w)
 		return nil, err
 	}
-	nonce := 0
+
+	// #################### PARSE AND VALIDATE PARAMAS ##########################
+	fmt.Print("\nBeginning parse and validate params:")
 	entrypointAddress := address.MustParseAddr("kQD-99yAg5IsTqRt2qiw1IDkEexCXcaaGmMU-MPhL74cHwCM")
 	b, err := api.GetMasterchainInfo(ctx)
 	if err != nil {
@@ -163,42 +165,26 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		return nil, utils.ErrInternal(fmt.Errorf("invalid address: exceeds 160 bits").Error())
 	}
 	tvmAddress := address.MustParseAddr(params.TvmAddress)
-	proxyWalletAddress, state := calculateProxyWalletAddress(uint64(nonce), entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
+	initNonce := 0 // should be taking entrypoint from params by static for now
+	proxyWalletAddress, state := calculateProxyWalletAddress(uint64(initNonce), entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
 	fmt.Print(state)
 	fmt.Printf("\nevm address bigint: %v", evmAddressBigInt)
-	// call get_wallet_info, if fails, wallet is not init
-	qwertyResponse, err := getWalletInfo(proxyWalletAddress.String())
-	if err != nil {
-		fmt.Printf("\nproxy wallet address: %v\n", proxyWalletAddress.String())
-		isInit = false
-	}
 
-	fmt.Printf("\nqwertyResponse: %v", qwertyResponse)
-
-	// assetAddress := address.MustParseAddr(params.AssetAddress)
-	// assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64) // amount to be receieved
-	// if err != nil {
-	// 	return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
-	// }
-	// queryId := uint64(72)
-	// forwardTonAmount := uint64(5000000)
-	// totalTonAmount := uint64(10000000)
-	// executionData, messageHash := CreateUnsignedMintCall(tvmAddress, queryId, assetAmount, forwardTonAmount, assetAddress, totalTonAmount)
-	// call get_wallet_info, if fails, wallet is not init
-	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
-		fmt.Printf("\ncurrent isInit err: %v", err)
+	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil { // don't need any data from proxy wallet, just if valid
+		fmt.Print("\nproxy wallet not initialized")
 		isInit = false
+	} else {
+		fmt.Print("\nproxy wallet initialized")
+		isInit = true
 	}
-	fmt.Printf("\ncurrent isInit: %v", isInit)
 	executionData, err := ToExecutionData(params.Message.Data)
 	if err != nil {
-		fmt.Printf("\nerr is inside of here: %v", err)
 		return nil, utils.ErrInternal(err.Error())
 	}
 	messageHash := ExecutionDataToCell(executionData).Hash()
-	// we are calling the mint function to mint tokens to user tvm address
-	// we check if user sa is initialize
 
+	// ######################### VALIDATE SIGNATURE #############################
+	fmt.Print("\nBeginning signature validation:")
 	var signature Signature
 	signature.V, err = strconv.ParseUint(params.Message.Signature.V, 10, 64)
 	if err != nil {
@@ -215,16 +201,18 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	if err != nil {
 		return nil, utils.ErrInternal(fmt.Sprintf("invalid sig-s value: %v", err.Error()))
 	}
+	signature.S, _ = utils.BytesToUint64(signatureR)
 
 	if signature.V >= 27 {
 		signature.V -= 27
 	}
 
-	signature.S, _ = utils.BytesToUint64(signatureR)
 	signatureBytes := append(signatureR, signatureS...)
 	signatureBytes = append(signatureBytes, byte(signature.V))
 
-	fmt.Print("\nabout to print ValidateEvmEcdsaSignature")
+	fmt.Printf("\nhash:      %+v", hex.EncodeToString(messageHash))
+	fmt.Printf("\nsignature: %+v", hex.EncodeToString(signatureBytes))
+	fmt.Printf("\naddress:   %+v", evmAddress.Hex())
 	if ok, err := ValidateEvmEcdsaSignature(messageHash, signatureBytes, evmAddress); !ok || err != nil {
 		if err != nil {
 			return nil, utils.ErrInternal(fmt.Sprintf("Error validating signature: %v\n", err))
@@ -233,6 +221,8 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		}
 	}
 
+	// ######################### VALIDATE SIGNATURE #############################
+	fmt.Print("\nBeginning build tx:")
 	proxyWalletMessage := ProxyWalletMessage{
 		QueryId:   1,
 		Signature: signature,
