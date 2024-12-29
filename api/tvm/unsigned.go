@@ -12,7 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -124,12 +123,7 @@ type SignedEntryPointRequestParams struct {
 			R string `query:"sig-r"`
 			S string `query:"sig-s"`
 		} `query:"msg-signature"`
-		Data struct {
-			MessageRegime      string `query:"data-regime"`
-			MessageDestination string `query:"data-destination"`
-			MessageValue       string `query:"data-value"`
-			MessageBody        string `query:"data-body"`
-		} `query:"msg-data"`
+		Data ExecutionDataParams `query:"msg-data"`
 	} `query:"message"`
 }
 
@@ -173,20 +167,35 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	fmt.Print(state)
 	fmt.Printf("\nevm address bigint: %v", evmAddressBigInt)
 	// call get_wallet_info, if fails, wallet is not init
-	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
+	qwertyResponse, err := getWalletInfo(proxyWalletAddress.String())
+	if err != nil {
 		fmt.Printf("\nproxy wallet address: %v\n", proxyWalletAddress.String())
 		isInit = false
 	}
 
-	assetAddress := address.MustParseAddr(params.AssetAddress)
-	assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64) // amount to be receieved
-	if err != nil {
-		return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
+	fmt.Printf("\nqwertyResponse: %v", qwertyResponse)
+
+	// assetAddress := address.MustParseAddr(params.AssetAddress)
+	// assetAmount, err := strconv.ParseUint(params.AssetAmount, 10, 64) // amount to be receieved
+	// if err != nil {
+	// 	return nil, utils.ErrInternal(fmt.Errorf("failed to parse jetton amount: %v", err).Error())
+	// }
+	// queryId := uint64(72)
+	// forwardTonAmount := uint64(5000000)
+	// totalTonAmount := uint64(10000000)
+	// executionData, messageHash := CreateUnsignedMintCall(tvmAddress, queryId, assetAmount, forwardTonAmount, assetAddress, totalTonAmount)
+	// call get_wallet_info, if fails, wallet is not init
+	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
+		fmt.Printf("\ncurrent isInit err: %v", err)
+		isInit = false
 	}
-	queryId := uint64(72)
-	forwardTonAmount := uint64(5000000)
-	totalTonAmount := uint64(10000000)
-	executionData, messageHash := CreateUnsignedMintCall(tvmAddress, queryId, assetAmount, forwardTonAmount, assetAddress, totalTonAmount)
+	fmt.Printf("\ncurrent isInit: %v", isInit)
+	executionData, err := ToExecutionData(params.Message.Data)
+	if err != nil {
+		fmt.Printf("\nerr is inside of here: %v", err)
+		return nil, utils.ErrInternal(err.Error())
+	}
+	messageHash := ExecutionDataToCell(executionData).Hash()
 	// we are calling the mint function to mint tokens to user tvm address
 	// we check if user sa is initialize
 
@@ -267,20 +276,20 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		fmt.Print(blockproxy)
 		fmt.Print(tx)
 		fmt.Print(block)
-		txproxy, blockproxy, err = w.SendWaitTransaction(ctx, &wallet.Message{
-			Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
-			InternalMessage: &tlb.InternalMessage{
-				IHRDisabled: true,
-				Bounce:      false,
-				DstAddr:     proxyWalletAddress,
-				Amount:      tlb.MustFromTON("0.15"),
-				Body:        ProxyWalletMessageToCell(proxyWalletMessage),
-				StateInit:   state,
-			},
-		})
-		if err != nil {
-			fmt.Printf("\nI got this error: %v", err)
-		}
+		// txproxy, blockproxy, err = w.SendWaitTransaction(ctx, &wallet.Message{
+		// 	Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		// 	InternalMessage: &tlb.InternalMessage{
+		// 		IHRDisabled: true,
+		// 		Bounce:      false,
+		// 		DstAddr:     proxyWalletAddress,
+		// 		Amount:      tlb.MustFromTON("0.15"),
+		// 		Body:        ProxyWalletMessageToCell(proxyWalletMessage),
+		// 		StateInit:   state,
+		// 	},
+		// })
+		// if err != nil {
+		// 	fmt.Printf("\nI got this error: %v", err)
+		// }
 	}
 
 	entrypointMessage := EntrypointMessage{
@@ -304,7 +313,7 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 		Tx []TxBlockResponse
 	}{
 		Tx: []TxBlockResponse{
-			ParseTxBlockResponse(txproxy, blockproxy),
+			// ParseTxBlockResponse(txproxy, blockproxy),
 			// ParseTxBlockResponse(tx, block),
 		},
 	}, nil
@@ -440,6 +449,33 @@ func UnsignedMintToRequest(r *http.Request, parameters ...*UnsignedMintToRequest
 	totalTonAmount := uint64(10000000)
 	executionData, messageHash := CreateUnsignedMintCall(userAddress, queryId, assetAmount, forwardTonAmount, assetAddress, totalTonAmount)
 
+	fmt.Printf("\n body boc:  %v", hex.EncodeToString(executionData.Body.ToBOC()))
+
+	// no we want to try to call ToExecutionData
+	t, _ := cell.FromBOC(executionData.Body.ToBOC())
+	fmt.Printf("\n body boc2: %v", hex.EncodeToString(t.ToBOC()))
+	//to/from boc same
+
+	var testRegime []byte
+	testRegime = append(testRegime, executionData.Regime)
+	executionData2 := ExecutionDataParams{
+		Regime:      hex.EncodeToString(testRegime),
+		Destination: executionData.Destination.String(),
+		Value:       strconv.FormatUint(executionData.Value, 10),
+		Body:        hex.EncodeToString(executionData.Body.ToBOC()),
+	}
+
+	executionData3, err := ToExecutionData(executionData2) // we don't want to use the body of the proxyparams
+	hash1 := ExecutionDataToCell(executionData3).Hash()
+	hash2, _ := ExecutionDataHash(executionData2)
+	fmt.Printf("\n hash via ExecutionDataToCell: %v", hex.EncodeToString(hash1))
+	fmt.Printf("\n hash via ExecutionDataHash:   %v", hex.EncodeToString(hash2))
+
+	// if err != nil {
+	// 	fmt.Printf("\nerr is inside of here: %v", err)
+	// 	return nil, utils.ErrInternal(err.Error())
+	// }
+
 	return UnsignedMintToRequestResponse{
 		Regime:      fmt.Sprint(executionData.Regime),
 		Destination: executionData.Destination.String(),
@@ -521,13 +557,11 @@ func UnsignedEntryPointRequest(r *http.Request, parameters ...*UnsignedEntryPoin
 	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil {
 		isInit = false
 	}
-	fmt.Print("\ngot over here")
-	executionData, err := ToExecutionData(params.ProxyParams.ExecutionData)
+	executionData, err := ToExecutionData(params.ProxyParams.ExecutionData) // we don't want to use the body of the proxyparams
 	if err != nil {
 		fmt.Printf("\nerr is inside of here: %v", err)
 		return nil, utils.ErrInternal(err.Error())
 	}
-	fmt.Print("\ngot over here")
 	messageHash := ExecutionDataToCell(executionData).Hash()
 	// messageHashEth, err := hashCellWithEthereumPrefix(messageHash)
 	// if err != nil {

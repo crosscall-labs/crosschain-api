@@ -53,6 +53,17 @@ type MessageHeaderResponse struct {
 	ToChainSigner   string `json:"tsigner"`
 }
 
+// type UserInfoResponse struct {
+// 	ChainId string `json:"chain-id"`
+// 	VM string `json:"vm"`
+// 	User struct {
+// 		Address string `query:"address"`
+// 	} `json:"user"`
+// 	Escrow struct {
+// 		Init s
+// 	}
+// }
+
 type ChainInfo struct {
 	ID             string
 	VM             string

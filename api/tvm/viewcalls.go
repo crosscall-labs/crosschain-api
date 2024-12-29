@@ -19,15 +19,42 @@ type GetWalletDataResponse struct {
 	JettonWalletCode string `json:"jetton_wallet_address"`
 }
 
+type GetWalletInfoResponse struct {
+	Nonce             string `json:"nonce"`
+	EntrypointAddress string `json:"entrypoint-address"`
+	EvmAddress        string `json:"evm-address"`
+	TvmAddress        string `json:"tvm-address"`
+}
+
+// RawResponse represents the raw JSON structure of the API response.
+type RawResponse struct {
+	Success  bool        `json:"success"`
+	ExitCode int         `json:"exit_code"`
+	Stack    []StackItem `json:"stack"`
+}
+
+// StackItem represents individual items in the stack array with the custom format.
+type StackItem struct {
+	Type string `json:"type"`
+	Num  string `json:"num,omitempty"`
+	Cell string `json:"cell,omitempty"`
+}
+
+// (int, slice, int, slice) get_wallet_info() method_id {
+// 	load_data();
+// 	return (storage::nonce, storage::entrypoint_address, storage::owner_evm_address, storage::owner_ton_address);
+// }
+
+// using canonical naming convention
 type GetJettonDataResponse struct {
 	TotalSupply      string `json:"total_supply"`
-	Mintable         bool   `json:"mintable"`
+	Mintable         string `json:"mintable"`
 	AdminAddress     string `json:"admin_address"`
 	JettonContent    string `json:"jetton_content"`
 	JettonWalletCode string `json:"jetton_wallet_code"`
 }
 
-func CallViewFunction(api string, contractAddress string, method string, args []string) (interface{}, error) {
+func CallViewFunction(api string, contractAddress string, method string, args []string) ([]byte, error) {
 	baseURL := fmt.Sprintf("%s%s/methods/%s", api, contractAddress, method)
 	query := url.Values{}
 	for _, arg := range args {
@@ -45,87 +72,146 @@ func CallViewFunction(api string, contractAddress string, method string, args []
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("received status: %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
-	var result ViewFunctionResult
-	if err := json.Unmarshal(body, &result); err != nil {
-		fmt.Printf("the error: %v", err)
+	return responseBytes, nil
+}
+
+// func ParseViewResponse(response interface{}, targetStruct interface{}) (interface{}, error) {
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to marshal response map: %v", err)
+// 	}
+
+// 	if err := json.Unmarshal(decodedBytes, targetStruct); err != nil {
+// 		return nil, fmt.Errorf("parsing failed: %v", err)
+// 	}
+
+// 	return targetStruct, nil
+// }
+
+func ParseViewResponse(decodedBytes []byte) ([]StackItem, error) {
+	type RawResponse struct {
+		Success  bool        `json:"success"`
+		ExitCode int         `json:"exit_code"`
+		Stack    []StackItem `json:"stack"`
+	}
+
+	var rawResponse RawResponse
+	if err := json.Unmarshal(decodedBytes, &rawResponse); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
-	return result, nil
-}
 
-func ParseViewResponse(response interface{}, targetStruct interface{}) (interface{}, error) {
-	decodedBytes, err := json.Marshal(response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response map: %v", err)
+	if !rawResponse.Success {
+		return nil, fmt.Errorf("response indicates failure: exit_code %d", rawResponse.ExitCode)
 	}
 
-	if err := json.Unmarshal(decodedBytes, targetStruct); err != nil {
-		return nil, fmt.Errorf("parsing failed: %v", err)
-	}
-
-	return targetStruct, nil
+	return rawResponse.Stack, nil
 }
 
-func getUserJettonWallet(userAddressRaw string, assetAddressRaw string) (interface{}, error) {
+func getUserJettonWallet(userAddressRaw string, assetAddressRaw string) (GetUserJettonWalletResponse, error) {
 	api := "https://testnet.tonapi.io/v2/blockchain/accounts/"
 	response, err := CallViewFunction(api, assetAddressRaw, "get_wallet_address", []string{userAddressRaw})
 	if err != nil {
-		return nil, err
+		return GetUserJettonWalletResponse{}, err
 	}
 
-	parsedResponse, err := ParseViewResponse(response.(ViewFunctionResult).Decoded, &GetUserJettonWalletResponse{})
+	stack, err := ParseViewResponse(response)
 	if err != nil {
-		return nil, err
+		return GetUserJettonWalletResponse{}, err
 	}
 
-	return parsedResponse, nil
+	if len(stack) < 1 {
+		return GetUserJettonWalletResponse{}, fmt.Errorf("stack has insufficient items to map to GetWalletInfoResponse")
+	}
+
+	result := GetUserJettonWalletResponse{
+		JettonWalletAddress: stack[0].Cell,
+	}
+
+	fmt.Printf("\nformatted get_wallet_address response: %+v", result)
+	return result, nil
 }
 
-func getJettonData(jettonAddressRaw string) (interface{}, error) {
+func getJettonData(jettonAddressRaw string) (GetJettonDataResponse, error) {
 	api := "https://testnet.tonapi.io/v2/blockchain/accounts/"
 	response, err := CallViewFunction(api, jettonAddressRaw, "get_jetton_data", []string{})
 	if err != nil {
-		return nil, err
+		return GetJettonDataResponse{}, err
 	}
 
-	parsedResponse, err := ParseViewResponse(response.(ViewFunctionResult).Decoded, &GetJettonDataResponse{})
+	stack, err := ParseViewResponse(response)
 	if err != nil {
-		return nil, err
+		return GetJettonDataResponse{}, err
 	}
 
-	return parsedResponse, nil
+	if len(stack) < 5 {
+		return GetJettonDataResponse{}, fmt.Errorf("stack has insufficient items to map to GetWalletInfoResponse")
+	}
+
+	result := GetJettonDataResponse{
+		TotalSupply:      stack[0].Num,
+		Mintable:         stack[1].Num,
+		AdminAddress:     stack[2].Cell,
+		JettonContent:    stack[3].Cell,
+		JettonWalletCode: stack[4].Cell,
+	}
+
+	fmt.Printf("\nformatted get_jetton_data response: %+v", result)
+	return result, nil
 }
 
-func getWalletData(userJettonWalletRaw string) (interface{}, error) {
+func getWalletData(userJettonWalletRaw string) (GetWalletDataResponse, error) {
 	api := "https://testnet.tonapi.io/v2/blockchain/accounts/"
 	response, err := CallViewFunction(api, userJettonWalletRaw, "get_wallet_data", []string{})
 	if err != nil {
-		return nil, err
+		return GetWalletDataResponse{}, err
 	}
 
-	parsedResponse, err := ParseViewResponse(response.(ViewFunctionResult).Decoded, &GetWalletDataResponse{})
+	stack, err := ParseViewResponse(response)
 	if err != nil {
-		return nil, err
+		return GetWalletDataResponse{}, err
 	}
 
-	return parsedResponse, nil
+	if len(stack) < 4 {
+		return GetWalletDataResponse{}, fmt.Errorf("stack has insufficient items to map to GetWalletInfoResponse")
+	}
+
+	result := GetWalletDataResponse{
+		Balance:          stack[0].Num,
+		Owner:            stack[1].Cell,
+		Jetton:           stack[2].Num,
+		JettonWalletCode: stack[3].Cell,
+	}
+
+	fmt.Printf("\nformatted get_wallet_data response: %+v", result)
+	return result, nil
 }
 
-func getWalletInfo(proxyWalletAddressRaw string) (interface{}, error) {
+func getWalletInfo(proxyWalletAddressRaw string) (GetWalletInfoResponse, error) {
 	api := "https://testnet.tonapi.io/v2/blockchain/accounts/"
 	response, err := CallViewFunction(api, proxyWalletAddressRaw, "get_wallet_info", []string{})
 	if err != nil {
-		return nil, err
+		return GetWalletInfoResponse{}, err
 	}
 
-	parsedResponse, err := ParseViewResponse(response.(ViewFunctionResult).Decoded, &GetWalletDataResponse{})
+	stack, err := ParseViewResponse(response)
 	if err != nil {
-		return nil, err
+		return GetWalletInfoResponse{}, err
 	}
 
-	return parsedResponse, nil
+	if len(stack) < 4 {
+		return GetWalletInfoResponse{}, fmt.Errorf("stack has insufficient items to map to GetWalletInfoResponse")
+	}
+
+	result := GetWalletInfoResponse{
+		Nonce:             stack[0].Num,
+		EntrypointAddress: stack[1].Cell,
+		EvmAddress:        stack[2].Num,
+		TvmAddress:        stack[3].Cell,
+	}
+
+	fmt.Printf("\nformatted get_wallet_info response: %+v", result)
+	return result, nil
 }
