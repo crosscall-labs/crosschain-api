@@ -150,25 +150,24 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	}
 
 	// #################### PARSE AND VALIDATE PARAMAS ##########################
-	fmt.Print("\nBeginning parse and validate params:")
 	entrypointAddress := address.MustParseAddr("kQD-99yAg5IsTqRt2qiw1IDkEexCXcaaGmMU-MPhL74cHwCM")
 	b, err := api.GetMasterchainInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if ok := common.IsHexAddress(params.EvmAddress); !ok {
+		utils.LogError("evm-address is not a valid hex", params.EvmAddress)
 		return nil, utils.ErrInternal("evm-address is not a valid hex")
 	}
 	evmAddress := common.HexToAddress(params.EvmAddress)
 	evmAddressBigInt := new(big.Int).SetBytes(evmAddress.Bytes())
 	if evmAddressBigInt.BitLen() > 160 {
-		return nil, utils.ErrInternal(fmt.Errorf("invalid address: exceeds 160 bits").Error())
+		utils.LogError("invalid evm-address", "exceeds 160 bits")
+		return nil, utils.ErrInternal(fmt.Sprintf("invalid address: exceeds 160 bits"))
 	}
 	tvmAddress := address.MustParseAddr(params.TvmAddress)
 	initNonce := 0 // should be taking entrypoint from params by static for now
 	proxyWalletAddress, state := calculateProxyWalletAddress(uint64(initNonce), entrypointAddress, evmAddressBigInt, tvmAddress, byte(b.Workchain))
-	fmt.Print(state)
-	fmt.Printf("\nevm address bigint: %v", evmAddressBigInt)
 
 	if _, err := getWalletInfo(proxyWalletAddress.String()); err != nil { // don't need any data from proxy wallet, just if valid
 		fmt.Print("\nproxy wallet not initialized")
@@ -184,21 +183,23 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	messageHash := ExecutionDataToCell(executionData).Hash()
 
 	// ######################### VALIDATE SIGNATURE #############################
-	fmt.Print("\nBeginning signature validation:")
 	var signature Signature
 	signature.V, err = strconv.ParseUint(params.Message.Signature.V, 10, 64)
 	if err != nil {
+		utils.LogError("invalid sig-v value", err.Error())
 		return nil, utils.ErrInternal(fmt.Sprintf("invalid sig-v value: %v", err.Error()))
 	}
 
 	signatureR, err := hex.DecodeString(params.Message.Signature.R)
 	if err != nil {
+		utils.LogError("invalid sig-s value", err.Error())
 		return nil, utils.ErrInternal(fmt.Sprintf("invalid sig-r value: %v", err.Error()))
 	}
 	signature.R, _ = utils.BytesToUint64(signatureR)
 
 	signatureS, err := hex.DecodeString(params.Message.Signature.S)
 	if err != nil {
+		utils.LogError("invalid sig-s value", err.Error())
 		return nil, utils.ErrInternal(fmt.Sprintf("invalid sig-s value: %v", err.Error()))
 	}
 	signature.S, _ = utils.BytesToUint64(signatureR)
@@ -210,13 +211,19 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	signatureBytes := append(signatureR, signatureS...)
 	signatureBytes = append(signatureBytes, byte(signature.V))
 
-	fmt.Printf("\nhash:      %+v", hex.EncodeToString(messageHash))
-	fmt.Printf("\nsignature: %+v", hex.EncodeToString(signatureBytes))
-	fmt.Printf("\naddress:   %+v", evmAddress.Hex())
+	utils.LogInfo("Signature details", utils.FormatKeyValueLogs([][2]string{
+		{"address", evmAddress.Hex()},
+		{"hash", hex.EncodeToString(messageHash)},
+		{"signature", hex.EncodeToString(signatureBytes)},
+		{"module", "signature-validation"},
+	}))
+
 	if ok, err := ValidateEvmEcdsaSignature(messageHash, signatureBytes, evmAddress); !ok || err != nil {
 		if err != nil {
-			return nil, utils.ErrInternal(fmt.Sprintf("Error validating signature: %v\n", err))
+			utils.LogError("error validating isgnature", err.Error())
+			return nil, utils.ErrInternal(fmt.Sprintf("error validating signature: %v", err.Error()))
 		} else {
+			utils.LogError("signature validation failed", "invaid signature")
 			return nil, utils.ErrInternal("Signature validation failed: invalid signature")
 		}
 	}

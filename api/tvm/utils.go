@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -86,7 +87,9 @@ func ValidateEvmEcdsaSignature(hash []byte, signature []byte, address common.Add
 
 	// fmt.Print("\nI got this far0")
 	// recoveredAddress := crypto.PubkeyToAddress(*pubKey)
-	fmt.Printf("\nrecovered addrwess: %v", recoveredAddress.String())
-	fmt.Printf("\nexpected address: %v", address.Hex())
+	utils.LogInfo("Signature validation results", utils.FormatKeyValueLogs([][2]string{
+		{"recovered address", recoveredAddress.String()},
+		{" expected address", address.Hex()},
+	}))
 	return bytes.Equal(recoveredAddress.Bytes(), address.Bytes()), nil
 }

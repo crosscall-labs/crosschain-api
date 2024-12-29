@@ -18,6 +18,39 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type CustomLogFormatter struct{}
+
+func (f *CustomLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	level := entry.Level.String()
+
+	// Set log colors, using 256-color ANSI escape code
+	var levelColor string
+	switch entry.Level {
+	case logrus.InfoLevel:
+		levelColor = "\033[38;5;45m" // Green
+	case logrus.DebugLevel:
+		levelColor = "\033[34m" // Blue
+	case logrus.WarnLevel:
+		levelColor = "\033[33m" // Yellow
+	case logrus.ErrorLevel:
+		levelColor = "\033[31m" // Red
+	case logrus.FatalLevel:
+		levelColor = "\033[35m" // Magenta
+	case logrus.PanicLevel:
+		levelColor = "\033[36m" // Cyan
+	default:
+		levelColor = "\033[0m" // Reset color (for unknown levels)
+	}
+
+	logMessage := fmt.Sprintf("\n\033[38;5;180m%s\033[0m [%s%s\033[0m] %s\n",
+		entry.Time.Format("2006-01-02 15:04:05"), // Timestamp in cream color
+		levelColor,                               // Colorized log level
+		level,                                    // Log level name
+		entry.Message)                            // Log message
+
+	return []byte(logMessage), nil
+}
+
 func main() {
 	serverEnv := flag.String("server", "production", "Specify the server environment (local/production)")
 	flag.Parse()
@@ -29,7 +62,7 @@ func main() {
 		envFile = ".env"
 	}
 
-	err := godotenv.Load()
+	err := godotenv.Load(envFile)
 	if err != nil {
 		fmt.Println("Error loading .env file")
 	}
@@ -40,6 +73,16 @@ func main() {
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
+
+	logrus.SetFormatter(&CustomLogFormatter{})
+
+	// Log some examples
+	// logrus.Info("This is an info message")
+	// logrus.Debug("This is a debug message")
+	// logrus.Warn("This is a warning message")
+	// logrus.Error("This is an error message")
+	// logrus.Fatal("This is an panic message")
+	// logrus.Panic("This is an fatal message")
 
 	http.HandleFunc("/api/main", Handler.Handler)
 	http.HandleFunc("/api/info", InfoHandler.Handler)
