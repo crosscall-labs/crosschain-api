@@ -1,17 +1,12 @@
 package tvmHandler
 
 import (
-	"fmt"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-func MintMessage(to address.Address, query_id uint64, jetton_amount uint64, forward_ton_amount uint64, from address.Address, total_ton_amount uint64) *cell.Cell {
-
-	//nexta, _ := address.ParseAddr("kQB647ekSqIZ3HBbWEGHhpsOuWrlIgaqM8pddZCNNDL7-zjf")
-	fmt.Println("\ninput address: ", to)
-	fmt.Println("\nhardcoded address: ", "kQAqU-Wt4oIYMD-NRg803-rAoUaEHfdaUVZXY1fLVe0CoTlG")
+// mint jetton specified to any wallet, backend burn is only possible if proxy account
+func JettonMintMessage(to address.Address, query_id uint64, jetton_amount uint64, forward_ton_amount uint64, from address.Address, total_ton_amount uint64) *cell.Cell {
 	mintMsg := cell.BeginCell().
 		MustStoreUInt(0x178d4519, 32).
 		MustStoreUInt(query_id, 64).
@@ -22,7 +17,7 @@ func MintMessage(to address.Address, query_id uint64, jetton_amount uint64, forw
 		MustStoreMaybeRef(cell.BeginCell().EndCell()).
 		EndCell()
 
-	c := cell.BeginCell().
+	return cell.BeginCell().
 		MustStoreUInt(0x15, 32).
 		MustStoreUInt(query_id, 64).
 		MustStoreAddr(&to).
@@ -30,6 +25,32 @@ func MintMessage(to address.Address, query_id uint64, jetton_amount uint64, forw
 		MustStoreCoins(jetton_amount).
 		MustStoreRef(mintMsg).
 		EndCell()
+}
 
-	return c
+// mint jetton specified to any wallet, backend burn is only possible if proxy account
+func JettonBurnMessage(query_id uint64, jetton_amount uint64, response_address *address.Address, customPayload *cell.Cell) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(0x595f07bc, 32).
+		MustStoreUInt(query_id, 64).
+		MustStoreCoins(jetton_amount).
+		MustStoreAddr(response_address).
+		MustStoreMaybeRef(customPayload).
+		EndCell()
+}
+
+func JettonSendWithdrawTons(query_id uint64) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(0x6d8e5e3c, 32).
+		MustStoreUInt(query_id, 64).
+		EndCell()
+}
+
+func JettonSendWithdrawJettons(query_id uint64, from *address.Address, amount uint64) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(0x768a50b2, 32).
+		MustStoreUInt(query_id, 64).
+		MustStoreAddr(from).
+		MustStoreCoins(amount).
+		MustStoreMaybeRef(cell.BeginCell().EndCell()).
+		EndCell()
 }

@@ -26,10 +26,18 @@ func LogInfo(title string, message string) {
 	))
 }
 
+func LogInfoSimple(message string) {
+	logrus.Info(message)
+}
+
 func LogError(message string, errStr string) {
 	logrus.Error(fmt.Sprintf(
 		"%s: \033[38;5;197m%s",
 		message,
 		errStr,
 	))
+}
+
+func LogNotice(message string) {
+	logrus.Warn(message)
 }

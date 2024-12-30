@@ -276,3 +276,19 @@ type ViewFunctionResult struct {
 	} `json:"stack"`
 	Decoded interface{} `json:"decoded"`
 }
+
+type SignedEntryPointRequestParams struct {
+	EvmAddress   string `query:"evm-address"`
+	TvmAddress   string `query:"tvm-address"`
+	AssetAddress string `query:"asset-address"`
+	AssetAmount  string `query:"asset-amount"`
+	Message      struct {
+		QueryId   string `query:"msg-query-id"`
+		Signature struct {
+			V string `query:"sig-v"`
+			R string `query:"sig-r"`
+			S string `query:"sig-s"`
+		} `query:"msg-signature"`
+		Data ExecutionDataParams `query:"msg-data"`
+	} `query:"message"`
+}

@@ -146,7 +146,7 @@ func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestPara
 	forwardTonAmount := uint64(5000000)
 	totalTonAmount := uint64(10000000)
 
-	msgBody := MintMessage(*userAddress, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
+	msgBody := JettonMintMessage(*userAddress, queryId, jettonAmount, forwardTonAmount, *contractAddress, totalTonAmount)
 	amount := tlb.MustFromTON("0.01")
 
 	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{

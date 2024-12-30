@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"strconv"
 
+	"github.com/laminafinance/crosschain-api/api/tvm/utils/proxyWallet"
 	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/sha3"
@@ -129,33 +130,33 @@ func signatureToCell(signature SignatureRaw) (*cell.Cell, error) {
 // 	return signature;
 // }
 
-func ToExecutionData(message ExecutionDataParams) (ExecutionData, error) {
+func ToExecutionData(message ExecutionDataParams) (proxyWallet.ExecutionData, error) {
 	fmt.Printf("\nexecution data inside of toexecutiondata: %v\n", message)
 	regime, err := strconv.ParseInt(message.Regime, 16, 8)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("regime could not be parsed: %v", err)
+		return proxyWallet.ExecutionData{}, fmt.Errorf("regime could not be parsed: %v", err)
 	}
 	destination, err := address.ParseAddr(message.Destination)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("destination could not be parsed: %v", err)
+		return proxyWallet.ExecutionData{}, fmt.Errorf("destination could not be parsed: %v", err)
 	}
 	value, err := strconv.ParseInt(message.Value, 10, 64)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("value could not be parsed: %v", err)
+		return proxyWallet.ExecutionData{}, fmt.Errorf("value could not be parsed: %v", err)
 	}
 
 	bodyBytes, err := hex.DecodeString(message.Body)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("body could not be parsed: %v", err)
+		return proxyWallet.ExecutionData{}, fmt.Errorf("body could not be parsed: %v", err)
 	}
 
 	body, err := cell.FromBOC(bodyBytes)
 	if err != nil {
-		return ExecutionData{}, fmt.Errorf("body invalid cell: %v", err)
+		return proxyWallet.ExecutionData{}, fmt.Errorf("body invalid cell: %v", err)
 	}
 	fmt.Printf("\nbody: %v", body)
 
-	return ExecutionData{
+	return proxyWallet.ExecutionData{
 		Regime:      byte(uint8(regime)),
 		Destination: destination,
 		Value:       uint64(value),
@@ -168,7 +169,7 @@ func ExecutionDataHash(message ExecutionDataParams) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ExecutionDataToCell(executionData).Hash(), nil
+	return proxyWallet.ExecutionDataToCell(executionData).Hash(), nil
 }
 
 func hashCellWithEthereumPrefix(cellData []byte) ([]byte, error) {
@@ -217,12 +218,12 @@ func entrypointMessageWithProxyInit(
 	tvmAddress *address.Address,
 	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
-	message ProxyWalletMessage,
+	message proxyWallet.ProxyWalletMessage,
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
 	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
-	proxyWalletMsgCell := ProxyWalletMessageToCell(message)
+	proxyWalletMsgCell := proxyWallet.ProxyWalletMessageToCell(message)
 
 	proxyBody := cell.BeginCell().
 		MustStoreRef(stateInit).
@@ -248,12 +249,12 @@ func entrypointMessageWithoutProxyInit(
 	tvmAddress *address.Address,
 	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
-	message ProxyWalletMessage,
+	message proxyWallet.ProxyWalletMessage,
 	workchain int,
 ) (*cell.Cell, error) {
 	stateInit := calculateProxyWalletStateInit(evmAddress, tvmAddress, entrypointAddress, proxyWalletCode)
 	proxyAddress := CellToAddress(true, true, uint8(0), calculate_contract_address(stateInit, workchain))
-	proxyWalletMsgCell := ProxyWalletMessageToCell(message)
+	proxyWalletMsgCell := proxyWallet.ProxyWalletMessageToCell(message)
 
 	entrypointBody := cell.BeginCell().
 		MustStoreAddr(proxyAddress).
@@ -274,7 +275,7 @@ func createEntrypointMessage(
 	tvmAddress *address.Address,
 	entrypointAddress *address.Address,
 	proxyWalletCode *cell.Dictionary,
-	message ProxyWalletMessage,
+	message proxyWallet.ProxyWalletMessage,
 	workchain int,
 	withProxyInit bool,
 ) (*cell.Cell, error) {

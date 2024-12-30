@@ -27,7 +27,7 @@ func (f *CustomLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	var levelColor string
 	switch entry.Level {
 	case logrus.InfoLevel:
-		levelColor = "\033[38;5;45m" // Green
+		levelColor = "\033[38;5;45m" // Cyan
 	case logrus.DebugLevel:
 		levelColor = "\033[34m" // Blue
 	case logrus.WarnLevel:
