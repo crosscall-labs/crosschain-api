@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	evmHandler "github.com/laminafinance/crosschain-api/api/evm"
-	tvmHandler "github.com/laminafinance/crosschain-api/api/tvm"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	evmHandler "github.com/crosscall-labs/crosschain-api/api/evm"
+	tvmHandler "github.com/crosscall-labs/crosschain-api/api/tvm"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 )
 
 func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestParams) (interface{}, error) {

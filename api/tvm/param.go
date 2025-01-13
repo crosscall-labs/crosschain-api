@@ -12,8 +12,8 @@ import (
 	"math/rand"
 	"strconv"
 
-	"github.com/laminafinance/crosschain-api/api/tvm/utils/proxyWallet"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/api/tvm/utils/proxyWallet"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/sha3"
 

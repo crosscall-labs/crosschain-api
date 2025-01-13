@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 )
 
 func CallViewFunction(api string, contractAddress string, method string, args []string) ([]byte, error) {

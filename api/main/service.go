@@ -14,6 +14,9 @@ import (
 	"strings"
 	"time"
 
+	evmHandler "github.com/crosscall-labs/crosschain-api/api/evm"
+	tvmHandler "github.com/crosscall-labs/crosschain-api/api/tvm"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -21,9 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	evmHandler "github.com/laminafinance/crosschain-api/api/evm"
-	tvmHandler "github.com/laminafinance/crosschain-api/api/tvm"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"golang.org/x/crypto/sha3"
 )
 

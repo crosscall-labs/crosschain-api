@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 )
 
 func errUnsupportedChain(chainId string) string {

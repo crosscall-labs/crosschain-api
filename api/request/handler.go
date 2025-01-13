@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/laminafinance/crosschain-api/pkg/db"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/db"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/supabase-community/supabase-go"
 )
 

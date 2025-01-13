@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
 func AssetMintRequest(r *http.Request, parameters ...*utils.AssetMintRequestParams) (interface{}, error) {

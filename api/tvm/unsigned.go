@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/crosscall-labs/crosschain-api/api/tvm/utils/entrypoint"
+	"github.com/crosscall-labs/crosschain-api/api/tvm/utils/proxyWallet"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/laminafinance/crosschain-api/api/tvm/utils/entrypoint"
-	"github.com/laminafinance/crosschain-api/api/tvm/utils/proxyWallet"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"

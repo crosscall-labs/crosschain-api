@@ -1,6 +1,6 @@
 package requestHandler
 
-import "github.com/laminafinance/crosschain-api/pkg/utils"
+import "github.com/crosscall-labs/crosschain-api/pkg/utils"
 
 type MessageResponse interface {
 	GetType() string

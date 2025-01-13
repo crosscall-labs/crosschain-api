@@ -1,6 +1,6 @@
 package evmHandler
 
-import "github.com/laminafinance/crosschain-api/pkg/utils"
+import "github.com/crosscall-labs/crosschain-api/pkg/utils"
 
 type UnsignedEscrowRequestParams struct {
 	Header utils.PartialHeader `query:"header"`

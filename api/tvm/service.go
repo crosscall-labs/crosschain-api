@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/laminafinance/crosschain-api/pkg/tonx"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/tonx"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"

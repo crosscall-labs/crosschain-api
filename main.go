@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"os"
 
-	EvmHandler "github.com/laminafinance/crosschain-api/api/evm"
-	InfoHandler "github.com/laminafinance/crosschain-api/api/info"
-	Handler "github.com/laminafinance/crosschain-api/api/main"
-	RequestHandler "github.com/laminafinance/crosschain-api/api/request"
-	SvmHandler "github.com/laminafinance/crosschain-api/api/svm"
-	TvmHandler "github.com/laminafinance/crosschain-api/api/tvm"
+	EvmHandler "github.com/crosscall-labs/crosschain-api/api/evm"
+	InfoHandler "github.com/crosscall-labs/crosschain-api/api/info"
+	Handler "github.com/crosscall-labs/crosschain-api/api/main"
+	RequestHandler "github.com/crosscall-labs/crosschain-api/api/request"
+	SvmHandler "github.com/crosscall-labs/crosschain-api/api/svm"
+	TvmHandler "github.com/crosscall-labs/crosschain-api/api/tvm"
 	"github.com/sirupsen/logrus"
 
 	"github.com/joho/godotenv"

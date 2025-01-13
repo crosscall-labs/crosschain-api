@@ -269,7 +269,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// goal is to have selection routing
 	switch r.URL.Query().Get("query") {
 	case "version":
-		version := Version{Version: "Luban DEX API v0.0.3"}
+		version := Version{Version: "Crosscall DEX API v0.0.3"}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(version); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

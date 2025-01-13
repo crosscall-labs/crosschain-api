@@ -3,9 +3,9 @@ package evmHandler
 import (
 	"math/big"
 
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
 )
 
 type UnsignedEntryPointRequestResponse struct {

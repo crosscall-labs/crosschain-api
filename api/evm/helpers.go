@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
 	"golang.org/x/crypto/sha3"
 )
 

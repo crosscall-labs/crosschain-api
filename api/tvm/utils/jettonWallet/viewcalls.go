@@ -3,8 +3,8 @@ package jettonWallet
 import (
 	"fmt"
 
-	tvmUtils "github.com/laminafinance/crosschain-api/api/tvm/utils"
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	tvmUtils "github.com/crosscall-labs/crosschain-api/api/tvm/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 )
 
 func GetWalletData(userJettonWalletRaw string) (GetWalletDataResponse, error) {

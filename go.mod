@@ -1,4 +1,4 @@
-module github.com/laminafinance/crosschain-api
+module github.com/crosscall-labs/crosschain-api
 
 go 1.21.1
 

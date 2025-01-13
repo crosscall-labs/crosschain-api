@@ -3,7 +3,7 @@ package db
 import (
 	"log"
 
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 	"github.com/supabase-community/supabase-go"
 )
 

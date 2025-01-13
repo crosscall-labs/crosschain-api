@@ -1,7 +1,7 @@
 package requestHandler
 
 import (
-	"github.com/laminafinance/crosschain-api/pkg/utils"
+	"github.com/crosscall-labs/crosschain-api/pkg/utils"
 )
 
 type UnsignedCrosschainRequestParams struct {
