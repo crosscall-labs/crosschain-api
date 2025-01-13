@@ -145,7 +145,7 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 
 	if ok, err := ValidateEvmEcdsaSignature(messageHash, signatureBytes, evmAddress); !ok || err != nil {
 		if err != nil {
-			utils.LogError("error validating isgnature", err.Error())
+			utils.LogError("error validating signature", err.Error())
 			return nil, utils.ErrInternal(fmt.Sprintf("error validating signature: %v", err.Error()))
 		} else {
 			utils.LogError("signature validation failed", "invaid signature")
@@ -162,13 +162,13 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	}
 
 	proxyMessage := &tlb.InternalMessage{}
-	// proxyMessage = &tlb.InternalMessage{
-	// 	IHRDisabled: true,
-	// 	Bounce:      false,
-	// 	DstAddr:     proxyWalletAddress,
-	// 	Amount:      tlb.FromNanoTONU(executionData.Value),
-	// 	Body:        proxyWallet.ProxyWalletMessageToCell(proxyWalletMessage),
-	// }
+	proxyMessage = &tlb.InternalMessage{
+		IHRDisabled: true,
+		Bounce:      false,
+		DstAddr:     proxyWalletAddress,
+		Amount:      tlb.FromNanoTONU(executionData.Value),
+		Body:        proxyWallet.ProxyWalletMessageToCell(proxyWalletMessage),
+	}
 	fmt.Print(proxyMessage)
 	if isInit {
 		proxyMessage = &tlb.InternalMessage{
@@ -220,24 +220,24 @@ func SignedEntryPointRequest(r *http.Request, parameters ...*SignedEntryPointReq
 	}
 	fmt.Print(entrypointMessage)
 
-	// queryId := uint64(0)
-	// tx, block, _ = w.SendWaitTransaction(ctx, &wallet.Message{
-	// 	Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
-	// 	InternalMessage: &tlb.InternalMessage{
-	// 		IHRDisabled: true,
-	// 		Bounce:      false,
-	// 		DstAddr:     entrypointAddress,
-	// 		Amount:      tlb.MustFromTON("0.2"),
-	// 		Body:        entrypoint.EntrypointMessageToCell(entrypointMessage, queryId),
-	// 	},
-	// })
+	queryId := uint64(0)
+	tx, block, _ = w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately + wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     entrypointAddress,
+			Amount:      tlb.MustFromTON("0.2"),
+			Body:        entrypoint.EntrypointMessageToCell(entrypointMessage, queryId),
+		},
+	})
 
 	return struct {
 		Tx []TxBlockResponse
 	}{
 		Tx: []TxBlockResponse{
-			// ParseTxBlockResponse(txproxy, blockproxy),
-			// ParseTxBlockResponse(tx, block),
+			ParseTxBlockResponse(txproxy, blockproxy),
+			ParseTxBlockResponse(tx, block),
 		},
 	}, nil
 }
